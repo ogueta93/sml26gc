@@ -2,10 +2,10 @@
 //! (Mario invincible, so nothing interrupts it) is asked for the music the way a level start
 //! asks for it ($A468, 0:0595), and its sound goes to the speakers.
 use crate::ports::SoundOut;
+use cart_model::ram_map::MUSIC_REQUEST;
 use cart_model::{cheats, GameDriver};
 use gb_core::{Buttons, Gb};
 
-const MUSIC_REQUEST: u16 = 0xA468;
 /// Sound kept queued ahead, in seconds.
 const AHEAD: f32 = 0.08;
 /// Console frames run at most per editor frame.

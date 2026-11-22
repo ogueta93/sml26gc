@@ -303,21 +303,13 @@ mod tests {
         }
     }
 
-    /// A project whose Mario's start is in an empty new zone, played with no save: the new
-    /// game is in the new zone, on its point (SHOT=file.png keeps the screen).
-    #[test]
-    fn a_new_game_begins_in_the_new_zone_holding_the_start() {
-        let Some(path) = host::find_rom(None) else { return };
-        let mut doc = project_model::document::EditorDocument::open(std::fs::read(path).unwrap(), None);
-        let k = doc.blank_zone(1).unwrap();
-        let point = doc.new_zones[k].entry;
-        doc.set_start(Start { point, new_zone: Some(k) });
-        doc.commit().unwrap();
-        let mut g = Gb::new(doc.rom.clone(), 1000).unwrap();
+    /// A new game of `rom` played with no save, until the map has been shown for two seconds.
+    fn new_game_on_the_map(rom: Vec<u8>) -> (Gb, ZoneSwap) {
+        let mut g = Gb::new(rom, 1000).unwrap();
         let mut swap = ZoneSwap::new(&mut g, Box::new(Kept::default()));
         let mut on_map = 0;
         for f in 0..3000u32 {
-            g.run_frame_with(if f % 50 < 5 && f > 120 { Buttons::START } else { Buttons::NONE });
+            g.run_frame_with(if f % 50 < 5 && f > 120 && on_map == 0 { Buttons::START } else { Buttons::NONE });
             g.clear_audio();
             swap.update(&mut g);
             if g.read(GAME_MODE) == MAP_MODE {
@@ -328,9 +320,44 @@ mod tests {
             }
         }
         assert_eq!(on_map, 120, "the map is reached");
+        (g, swap)
+    }
+
+    /// A project whose Mario's start is in an empty new zone, played with no save: the new
+    /// game is in the new zone, on its point (SHOT=file.png keeps the screen).
+    #[test]
+    fn a_new_game_begins_in_the_new_zone_holding_the_start() {
+        let Some(path) = host::find_rom(None) else { return };
+        let mut doc = project_model::document::EditorDocument::open(std::fs::read(path).unwrap(), None);
+        let k = doc.blank_zone(1).unwrap();
+        let point = doc.new_zones[k].entry;
+        doc.set_start(Start { point, new_zone: Some(k) });
+        doc.commit().unwrap();
+        let (mut g, swap) = new_game_on_the_map(doc.rom.clone());
         assert_eq!((swap.inside(), g.read(MAP_POINT)), (Some(k), point));
         if let Ok(shot) = std::env::var("SHOT") {
             host::png_out::save_png(&g, std::path::Path::new(&shot));
         }
+    }
+
+    /// A new zone made from the Pumpkin Zone with the Space Zone's music plays it; the Pumpkin
+    /// Zone keeps its own.
+    #[test]
+    fn a_new_zone_plays_its_own_music() {
+        use cart_model::ram_map::MUSIC_PLAYING;
+        use cart_model::original_points::OnMap;
+        let Some(path) = host::find_rom(None) else { return };
+        let mut doc = project_model::document::EditorDocument::open(std::fs::read(path).unwrap(), None);
+        let k = doc.blank_zone(1).unwrap();
+        doc.set_map_music(OnMap::NewZone(k), 0x1C);
+        let point = doc.new_zones[k].entry;
+        doc.set_start(Start { point, new_zone: Some(k) });
+        doc.commit().unwrap();
+        let (mut g, swap) = new_game_on_the_map(doc.rom.clone());
+        assert_eq!((swap.inside(), g.read(MUSIC_PLAYING)), (Some(k), 0x1C));
+        doc.set_start(Start { point, new_zone: None });
+        doc.commit().unwrap();
+        let (mut g, swap) = new_game_on_the_map(doc.rom.clone());
+        assert_eq!((swap.inside(), g.read(MUSIC_PLAYING)), (None, 0x1E), "the Pumpkin Zone");
     }
 }

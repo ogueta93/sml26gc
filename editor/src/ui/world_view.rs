@@ -3,10 +3,12 @@
 //! each one opens and the paths Mario walks between them (Points tab): levels, paths, doors,
 //! exits and new points can be changed there. New zones are made from a zone and deleted here.
 use super::shortcuts::Action;
-use super::level_panel::{fit, GAP, LABEL_W, PAD, ROW, SCROLL_STEP};
+use super::level_panel::{fit, stepper, GAP, LABEL_W, PAD, ROW, SCROLL_STEP};
 use super::palette::clip;
 use super::widgets::*;
 use super::names_view::Named;
+use crate::domain::prefs::MUSIC_VOLUMES;
+use cart_model::map_music::{self, Map, Named as MusicNamed};
 use super::{Editor, TAB_PICTURE, TAB_POINTS};
 use crate::domain::document::{EditorDocument, ZoneRefusal};
 use crate::domain::tools::ToolKind;
@@ -945,6 +947,7 @@ impl Editor {
             self.name_field(Rect::new(PAD, y, w, 24.0), Named::Zone(k));
             y += 24.0 + GAP + 6.0;
         }
+        y = self.map_music_rows(y);
         // Picture / Points, then the picture's tools
         let half = (w - GAP) / 2.0;
         let picture = self.world_tab == TAB_PICTURE;
@@ -973,6 +976,48 @@ impl Editor {
         draw_rectangle(PAD, y, w, 2.0, col(3));
         y += 8.0;
         (act, y)
+    }
+
+    /// The shown map's music: a chooser over `map_music::choices`, then Listen and how loud it
+    /// plays. Returns where the panel continues.
+    fn map_music_rows(&mut self, mut y: f32) -> f32 {
+        let lang = self.lang;
+        let w = self.inner_w();
+        let (cx, cw) = (PAD + LABEL_W, w - LABEL_W);
+        let music = self.doc.map_music(self.world_map);
+        let choices = map_music::choices();
+        let i = choices.iter().position(|&(m, _)| m == music);
+        let name = match i.map(|i| choices[i].1) {
+            Some(MusicNamed::Map(map)) => self.map_name(match map {
+                Map::World => OnMap::World,
+                Map::Zone(z) => OnMap::Zone(z),
+            }),
+            Some(MusicNamed::Level(l)) => format!("{} {l:02}", tr(lang, "as level")),
+            None => format!("${music:02X}"),
+        };
+        put_text(tr(lang, "Music"), PAD, y + 18.0, 15.0, col(3));
+        let d = stepper(Rect::new(cx, y, cw, ROW), "<", ">", &name);
+        let playing = self.music_playing();
+        if d != 0 {
+            let chosen = choices[(i.unwrap_or(0) as i32 + d).rem_euclid(choices.len() as i32) as usize].0;
+            self.doc.set_map_music(self.world_map, chosen);
+            if playing {
+                self.toggle_music(chosen);
+                self.toggle_music(chosen);
+            }
+        }
+        y += ROW + GAP;
+        let music = self.doc.map_music(self.world_map);
+        if button(Rect::new(PAD, y, LABEL_W - GAP, ROW), if playing { tr(lang, "Stop") } else { tr(lang, "Listen") }, playing, 15.0) {
+            self.toggle_music(music);
+        }
+        let v = self.prefs.music_volume as i32;
+        let d = stepper(Rect::new(cx, y, cw, ROW), "-", "+", &format!("{} {v}", tr(lang, "editor vol")));
+        let nv = (v + d).clamp(*MUSIC_VOLUMES.start() as i32, *MUSIC_VOLUMES.end() as i32) as u32;
+        if nv != self.prefs.music_volume {
+            self.set_music_volume(nv);
+        }
+        y + ROW + GAP + 6.0
     }
 
     /// A point's circle with the level it opens and its tag; the chosen one ringed.
@@ -1300,7 +1345,7 @@ impl Editor {
         } else if self.placing_point {
             tr(self.lang, "Click on the map where the new point goes. Esc: cancel.")
         } else if zone.is_some() {
-            tr(self.lang, "A new zone plays with its base zone's graphics and music. Click a point to choose it, drag it to move it (its paths become straight); New point adds one (up to 20 in the Tree Zone's, 21 in the others). Entry: Mario starts there. Exit to: where its exits lead. Its door is chosen on a world map point. Plays only in this port.")
+            tr(self.lang, "A new zone plays with its base zone's graphics. Click a point to choose it, drag it to move it (its paths become straight); New point adds one (up to 20 in the Tree Zone's, 21 in the others). Entry: Mario starts there. Exit to: where its exits lead. Its door is chosen on a world map point. Plays only in this port.")
         } else {
             tr(self.lang, "Click a point on the map to choose it; with - + choose the level it opens. Door: a world point can enter a zone or a new zone (A or START on it). Exit to: a zone's exit leads to a world point or straight into another zone; Choose on the map (U) picks where by clicking. Exit 1 / 2: Here moves that exit to the chosen zone point. Paths are drawn in yellow; New path draws one, New point puts one on the world map (6 numbers free). Play (F5) saves and tries it.")
         };

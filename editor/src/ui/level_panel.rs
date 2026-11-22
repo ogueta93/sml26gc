@@ -394,22 +394,7 @@ impl Editor {
 
         self.heading(&mut rows, tr(lang, "SETTINGS"));
         let mut s = self.doc.level_settings(l);
-        let small = 26.0;
-        // a value between - and + (or < and >) buttons; returns -1, 0 or 1
-        let stepper = |rows_y: f32, minus: &str, plus: &str, value: &str| -> i32 {
-            let mut d = 0;
-            if button(Rect::new(cx, rows_y, small, ROW), minus, false, 16.0) {
-                d = -1;
-            }
-            let vw = cw - 2.0 * small - 2.0 * GAP;
-            let t = fit(value, vw - 4.0, 15.0);
-            let dim = text_size(&t, 15);
-            put_text(&t, cx + small + GAP + (vw - dim.width) / 2.0, rows_y + 18.0, 15.0, col(3));
-            if button(Rect::new(cx + cw - small, rows_y, small, ROW), plus, false, 16.0) {
-                d = 1;
-            }
-            d
-        };
+        let stepper = |rows_y: f32, minus: &str, plus: &str, value: &str| stepper(Rect::new(cx, rows_y, cw, ROW), minus, plus, value);
         if let Some(y) = rows.next(ROW) {
             Self::label(y, tr(lang, "Time"));
             let d = stepper(y, "-", "+", &format!("{}", s.time as u32 * 100));
@@ -542,4 +527,21 @@ impl Editor {
             None => tr(self.lang, "none").to_string(),
         }
     }
+}
+
+/// A value between - and + (or < and >) buttons in `r`; returns -1, 0 or 1.
+pub(super) fn stepper(r: Rect, minus: &str, plus: &str, value: &str) -> i32 {
+    let small = 26.0;
+    let mut d = 0;
+    if button(Rect::new(r.x, r.y, small, r.h), minus, false, 16.0) {
+        d = -1;
+    }
+    let vw = r.w - 2.0 * small - 2.0 * GAP;
+    let t = fit(value, vw - 4.0, 15.0);
+    let dim = text_size(&t, 15);
+    put_text(&t, r.x + small + GAP + (vw - dim.width) / 2.0, r.y + 18.0, 15.0, col(3));
+    if button(Rect::new(r.x + r.w - small, r.y, small, r.h), plus, false, 16.0) {
+        d = 1;
+    }
+    d
 }

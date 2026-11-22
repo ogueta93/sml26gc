@@ -1,12 +1,13 @@
 //! Restore: the map being edited as the original cartridge has it, its picture and its points
 //! (the levels they open, their paths, places, doors and exits); a new zone, as its base is
 //! there (it keeps its name and its door), or as the zone file it was imported from had it (it
-//! keeps its door). Undoable in both tabs.
+//! keeps its door). The map's music too. Undoable in both tabs.
 use super::{zones::{self, ZonePoints}, EditorDocument};
 use cart_model::doors::{self, NONE};
 use cart_model::map_routes::{self, ZONE_EXITS};
 use cart_model::new_zones::{self, NewZone};
 use cart_model::original_points::{OnMap, SPOTS};
+use cart_model::map_music::{self, Map};
 use cart_model::{world, zone_maps};
 
 impl EditorDocument {
@@ -61,6 +62,8 @@ impl EditorDocument {
             OnMap::World => {
                 self.map_snapshot();
                 self.world = world::read(&self.original);
+                self.world_music = map_music::read(&self.original, Map::World);
+                self.music_dirty = true;
                 for p in self.world_points() {
                     self.restore_point(p, &original, &levels);
                 }
@@ -77,6 +80,8 @@ impl EditorDocument {
             OnMap::Zone(z) => {
                 self.map_snapshot();
                 self.zones[z] = zone_maps::read(&self.original, z);
+                self.zone_music[z] = map_music::read(&self.original, Map::Zone(z));
+                self.music_dirty = true;
                 self.show_added(map);
                 self.take_added();
                 let world_points = self.world_points();

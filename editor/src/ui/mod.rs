@@ -484,9 +484,6 @@ impl Editor {
             }
             self.draw_level();
         }
-        if self.in_world {
-            self.music.stop();
-        }
         self.music.pump(&*self.sound, self.prefs.music_volume as f32 / *crate::domain::prefs::MUSIC_VOLUMES.end() as f32);
     }
 
@@ -744,6 +741,7 @@ impl Editor {
         if map == self.world_map {
             return;
         }
+        self.music.stop();
         self.world_map = map;
         self.tiles = None;
         self.doc.show_added(map);
@@ -791,6 +789,7 @@ impl Editor {
         if on == self.in_world {
             return;
         }
+        self.music.stop();
         self.leave_grid();
         if on {
             self.level_cam = self.cam;

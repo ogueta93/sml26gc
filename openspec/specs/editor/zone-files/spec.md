@@ -9,11 +9,16 @@ back as a new zone or replace a new zone whole, with the base zone they were mad
 ### Requirement: Exporting a zone
 The world map editor SHALL export the zone shown (one of the game's or a new one), as it is
 being edited, to a file the user names: its base zone, picture, points, paths, the level
-each point opens and its exits.
+each point opens, its exits and its music. A zone imported from the file, as a new zone or
+replacing one, SHALL have the file's music.
 
 #### Scenario: Export the Pumpkin Zone
 - **WHEN** the Pumpkin Zone is shown and the user exports it
 - **THEN** the file holds the Pumpkin Zone as edited, with the Pumpkin Zone as base, and the status bar says where it was written
+
+#### Scenario: A zone's music travels with it
+- **WHEN** the Pumpkin Zone, given a castle level's music, is exported and the file is imported as a new zone
+- **THEN** the new zone plays the castle level's music and the Pumpkin Zone keeps its own
 
 ### Requirement: Importing a zone as a new zone
 The world map editor SHALL import a zone file as a new zone, made from the file's base zone,
@@ -53,14 +58,14 @@ imported as a new zone or replacing one SHALL be part of the open project once s
 
 ### Requirement: The world map as a zone file
 On the world map, Export zone SHALL write the whole world map (picture, point levels, paths,
-places, added points, doors, shut directions) to a world map file, and Replace zone SHALL put
+places, added points, doors, shut directions, music) to a world map file, and Replace zone SHALL put
 one in its place, as one change saved with the project. Points and exits leading to new levels
 or new zones the project does not have SHALL lose their destination, and the editor SHALL say
 how many. A world map file SHALL NOT be imported as a new zone.
 
 #### Scenario: A world map to another project
 - **WHEN** the world map of one project is exported with Export zone and, in another project, Replace zone is chosen on the world map with that file
-- **THEN** the second project's world map is the file's, and saving keeps it
+- **THEN** the second project's world map is the file's, its music included, and saving keeps it
 
 ### Requirement: Mario's start in zone files
 A zone or world map file SHALL keep Mario's start when the map holds it. Importing or replacing

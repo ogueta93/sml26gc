@@ -35,6 +35,7 @@ use crate::error::CartError;
 use crate::map_routes::{self, Place, Way};
 use crate::patch::{is_expanded, TWIN};
 use crate::rom::{offset, word, BANK_SIZE};
+use crate::map_music::{self, Map};
 use crate::{added_points, world, zone_maps};
 use gb_core::Gb;
 use std::ops::RangeInclusive;
@@ -126,6 +127,8 @@ pub struct NewZone {
     pub door: u8,
     /// Given in the editor; empty: none.
     pub name: String,
+    /// The music its map plays (`map_music`).
+    pub music: u8,
 }
 
 const FLAGS: u16 = 0x650E;
@@ -138,8 +141,9 @@ const MAP_PICK: u16 = 0x7003;
 /// Unused space at the end of bank $0F.
 const HOOK: u16 = 0x7E00;
 const STORE: usize = 0x31;
-/// "XZN1": the same without names.
-const MAGIC: &[u8; 4] = b"XZN2";
+/// "XZN2": the same without music, "XZN1" without names either.
+const MAGIC: &[u8; 4] = b"XZN3";
+const MAGIC_UNMUSICAL: &[u8; 4] = b"XZN2";
 const MAGIC_UNNAMED: &[u8; 4] = b"XZN1";
 /// How many new zones there can be.
 pub const MAX: usize = 32;
@@ -227,7 +231,8 @@ pub fn from_parts(rom: &[u8], zone: usize, picture: &[u8], routes: &map_routes::
         })
         .collect();
     let exits = exit_sites(b).into_iter().filter_map(|i| d.exits.get(i).copied()).collect();
-    Some(NewZone { base: zone, picture: picture.to_vec(), points, entry: rom[entry], exits, door: NONE, name: String::new() })
+    let music = map_music::read(rom, Map::Zone(zone));
+    Some(NewZone { base: zone, picture: picture.to_vec(), points, entry: rom[entry], exits, door: NONE, name: String::new(), music })
 }
 
 /// The pass point list and the entry code with `z` in place of its base.
@@ -282,6 +287,7 @@ pub fn writes_for(rom: &[u8], zones: &[NewZone], k: usize) -> Result<Vec<(usize,
     }
     let mut n = rom.to_vec();
     zone_maps::write(&mut n, b.zone, &z.picture);
+    map_music::write(&mut n, Map::Zone(b.zone), z.music);
     let mut routes = map_routes::read(rom);
     let mut levels = world::point_levels(rom);
     for p in b.usable() {
@@ -384,7 +390,7 @@ fn encode(z: &NewZone) -> Result<Vec<u8>, CartError> {
     let name = crate::extra_levels::clean_name(&z.name);
     let mut v = vec![name.len() as u8];
     v.extend_from_slice(name.as_bytes());
-    v.extend_from_slice(&[z.base as u8, z.door, z.entry]);
+    v.extend_from_slice(&[z.base as u8, z.door, z.entry, z.music]);
     v.extend_from_slice(&z.picture[..zone_maps::W * zone_maps::H]);
     v.push(z.exits.len() as u8);
     for &(p, leads) in &z.exits {
@@ -441,7 +447,8 @@ pub(crate) fn decode_point(r: &[u8], i: &mut usize) -> Option<ZonePoint> {
     Some(ZonePoint { number, place, ways, level: f[0], flag: f[1], shut: f[2], pass: (pass != 0xFFFF).then_some(pass) })
 }
 
-fn decode(r: &[u8], i: &mut usize, named: bool) -> Option<NewZone> {
+/// One stored zone; `music` (its base's music in the copy) when the format has none.
+fn decode(r: &[u8], i: &mut usize, named: bool, music: Option<&dyn Fn(usize) -> u8>) -> Option<NewZone> {
     let mut take = |n: usize| -> Option<&[u8]> {
         let s = r.get(*i..*i + n)?;
         *i += n;
@@ -453,7 +460,11 @@ fn decode(r: &[u8], i: &mut usize, named: bool) -> Option<NewZone> {
     } else {
         String::new()
     };
-    let h = take(3)?.to_vec();
+    let mut h = take(3)?.to_vec();
+    h.push(match music {
+        Some(base_music) => base_music(h[0] as usize),
+        None => take(1)?[0],
+    });
     let picture = take(zone_maps::W * zone_maps::H)?.to_vec();
     let n = take(1)?[0] as usize;
     let mut exits = Vec::new();
@@ -471,19 +482,24 @@ fn decode(r: &[u8], i: &mut usize, named: bool) -> Option<NewZone> {
         points.push(decode_point(r, i)?);
     }
     base_of(h[0] as usize)?;
-    Some(NewZone { base: h[0] as usize, picture, points, entry: h[2], exits, door: h[1], name })
+    Some(NewZone { base: h[0] as usize, picture, points, entry: h[2], exits, door: h[1], name, music: h[3] })
 }
 
 /// The new zones kept in this copy (none in a copy that has no room for them).
 pub fn read(rom: &[u8]) -> Vec<NewZone> {
     let at = offset(STORE, 0x4000);
-    if !is_expanded(rom) || (&rom[at..at + 4] != MAGIC && &rom[at..at + 4] != MAGIC_UNNAMED) {
+    if !is_expanded(rom) {
+        return Vec::new();
+    }
+    let magic = &rom[at..at + 4];
+    if magic != MAGIC && magic != MAGIC_UNMUSICAL && magic != MAGIC_UNNAMED {
         return Vec::new();
     }
     let bank = &rom[at..at + BANK_SIZE];
-    let named = &bank[..4] == MAGIC;
+    let base_music = |base: usize| map_music::read(rom, Map::Zone(base));
+    let music: Option<&dyn Fn(usize) -> u8> = (magic != MAGIC).then_some(&base_music);
     let mut i = 5;
-    (0..(bank[4] as usize).min(MAX)).map_while(|_| decode(bank, &mut i, named)).collect()
+    (0..(bank[4] as usize).min(MAX)).map_while(|_| decode(bank, &mut i, magic != MAGIC_UNNAMED, music)).collect()
 }
 
 /// Write the new zones into the copy (replacing the ones it had). Returns the bytes used.
@@ -532,6 +548,7 @@ mod tests {
             exits: vec![(0x23, Leads::World(0x07))],
             door: 0x07,
             name: "Bosque".into(),
+            music: 0x28,
         }
     }
 
@@ -564,6 +581,26 @@ mod tests {
         b.exits[0].1 = Leads::NewZone(0);
         let used = store(&mut rom, &[a.clone(), b.clone()]).unwrap();
         assert!(used > 2 * 360);
+        assert_eq!(read(&rom), vec![a, b]);
+    }
+
+    #[test]
+    fn zones_stored_without_music_play_their_bases() {
+        let mut rom = expanded();
+        map_music::write(&mut rom, Map::Zone(2), 0x05);
+        let (mut a, mut b) = (zone(3), zone(4));
+        b.base = 2;
+        store(&mut rom, &[a.clone(), b.clone()]).unwrap();
+        let at = offset(STORE, 0x4000);
+        let mut old = MAGIC_UNMUSICAL.to_vec();
+        old.push(2);
+        for z in [&a, &b] {
+            let mut e = encode(z).unwrap();
+            e.remove(1 + z.name.len() + 3);
+            old.extend(e);
+        }
+        rom[at..at + old.len()].copy_from_slice(&old);
+        (a.music, b.music) = (map_music::read(&rom, Map::Zone(0)), 0x05);
         assert_eq!(read(&rom), vec![a, b]);
     }
 
