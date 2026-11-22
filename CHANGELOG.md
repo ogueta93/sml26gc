@@ -6,6 +6,8 @@ What each version of the programs brings, as a person using them notices it. The
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-22
+
 ### Added
 
 - macOS 11 Big Sur and later, on Apple Silicon and Intel Macs: the game and the editor as two
