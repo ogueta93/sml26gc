@@ -27,6 +27,9 @@ What each version of the programs brings, as a person using them notices it. The
   page with unsaved changes asks first.
 - Editor: File, Export cartridge writes the project's edited copy as a `.gb` file, to play it
   in another emulator or on another computer.
+- Editor: the world map and each zone, new zones too, can play another music: any the game
+  plays on a map or in a level, chosen in the zone editor (Listen plays it). Zone, world map and
+  project files keep it.
 
 ### Changed
 

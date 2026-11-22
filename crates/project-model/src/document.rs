@@ -33,6 +33,7 @@ use cart_model::doors::{self, Doors, Leads};
 use cart_model::map_routes::{self, MapRoutes, Way};
 use cart_model::objects::{self, Obj};
 use cart_model::original_notes::{self, Note};
+use cart_model::map_music::{self, Map};
 use cart_model::new_zones::ZonePoint;
 use cart_model::original_points::OnMap;
 use cart_model::start_point::{self, Start as GameStart};
@@ -186,6 +187,11 @@ pub struct EditorDocument {
     pub zones: Vec<Vec<u8>>,
     /// Any map picture changed.
     pub world_dirty: bool,
+    /// The music of the game's zone maps (`zone_maps::ZONES` order) and of the world map; the
+    /// new zones' are in `new_zones`.
+    pub zone_music: Vec<u8>,
+    pub world_music: u8,
+    pub music_dirty: bool,
     /// Which level each of the game's own map points opens.
     pub points: Vec<u8>,
     pub points_dirty: bool,
@@ -222,7 +228,7 @@ pub struct EditorDocument {
 }
 
 type PointsState = (Vec<u8>, MapRoutes, Doors, Vec<ZonePoints>, Vec<u8>, usize, Vec<Vec<ZonePoint>>, Vec<u8>);
-type MapState = ((Vec<u8>, Vec<Vec<u8>>), PointsState, GameStart);
+type MapState = ((Vec<u8>, Vec<Vec<u8>>), PointsState, GameStart, (u8, Vec<u8>));
 
 /// `points` with the game's special values (the castle door's $FF) back where a copy saved
 /// by an editor that lost them on deleting a level has "no level" (the editor cannot set
@@ -288,6 +294,9 @@ impl EditorDocument {
             world: world::read(&rom),
             zones,
             world_dirty: false,
+            zone_music: (0..zone_maps::ZONES.len()).map(|z| map_music::read(&rom, Map::Zone(z))).collect(),
+            world_music: map_music::read(&rom, Map::World),
+            music_dirty: false,
             points_dirty: points != world::point_levels(&rom),
             points,
             routes,
@@ -664,6 +673,8 @@ impl EditorDocument {
             entries: self.entries.clone(),
             zone_points: self.zones_added(),
             start: self.start,
+            world_music: self.world_music,
+            zone_music: self.zone_music.clone(),
         }
     }
 
@@ -696,6 +707,8 @@ impl EditorDocument {
         self.entries = if p.entries.len() == doors::INTO.len() { p.entries } else { entries_of(&self.original) };
         self.start = p.start;
         self.start_dirty = true;
+        (self.world_music, self.zone_music) = (p.world_music, p.zone_music);
+        self.music_dirty = true;
         self.new_zones_dirty = !self.new_zones.is_empty() || !p.new_zones.is_empty();
         let count = p.new_zones.len();
         let (zones, pictures): (Vec<ZonePoints>, Vec<Vec<u8>>) = p.new_zones.into_iter().map(|z| ZonePoints::from(zones::settled(z, count))).unzip();
@@ -716,7 +729,7 @@ impl EditorDocument {
     /// The world map as a world map file (`files::WorldFile`).
     pub fn world_file(&self) -> WorldFile {
         let (routes, points) = self.world_routes();
-        WorldFile { cartridge: files::cartridge_id(&self.original), world: self.world.clone(), points, routes, doors: self.doors.clone(), shuts: self.world_shuts(), start: self.map_start(OnMap::World) }
+        WorldFile { cartridge: files::cartridge_id(&self.original), world: self.world.clone(), points, routes, doors: self.doors.clone(), shuts: self.world_shuts(), start: self.map_start(OnMap::World), music: self.world_music }
     }
 
     /// Put a world map file in place of the world map (picture, point levels, paths, places,
@@ -748,6 +761,8 @@ impl EditorDocument {
         self.world = w.world;
         (self.points, self.routes, self.doors) = (points, w.routes, doors);
         self.shuts = added::shuts_from(&w.shuts);
+        self.world_music = w.music;
+        self.music_dirty = true;
         self.world_dirty = true;
         self.points_dirty = true;
         self.routes_dirty = true;
@@ -858,21 +873,23 @@ impl EditorDocument {
     /// Remember the maps (pictures and points) before a change, for undo.
     pub fn map_snapshot(&mut self) {
         let points = (self.points.clone(), self.routes.clone(), self.doors.clone(), self.new_zones.clone(), self.entries.clone(), self.added_on, self.added_kept.clone(), self.shuts.clone());
-        self.map_history.record(((self.world.clone(), self.zones.clone()), points, self.start));
+        self.map_history.record(((self.world.clone(), self.zones.clone()), points, self.start, (self.world_music, self.zone_music.clone())));
     }
 
     fn map_swap(&mut self, undo: bool) -> bool {
         let pictures = (std::mem::take(&mut self.world), std::mem::take(&mut self.zones));
         let points = (std::mem::take(&mut self.points), std::mem::take(&mut self.routes), std::mem::take(&mut self.doors), std::mem::take(&mut self.new_zones), std::mem::take(&mut self.entries), self.added_on, std::mem::take(&mut self.added_kept), std::mem::take(&mut self.shuts));
-        let mut now = (pictures, points, self.start);
+        let mut now = (pictures, points, self.start, (self.world_music, std::mem::take(&mut self.zone_music)));
         let done = if undo { self.map_history.undo(&mut now) } else { self.map_history.redo(&mut now) };
-        let (pictures, points, start) = now;
+        let (pictures, points, start, music) = now;
         self.start = start;
+        (self.world_music, self.zone_music) = music;
         (self.world, self.zones) = pictures;
         (self.points, self.routes, self.doors, self.new_zones, self.entries, self.added_on, self.added_kept, self.shuts) = points;
         let left = if undo { self.map_history.next_redo() } else { self.map_history.next_undo() };
-        if let (true, Some(((world, zones), (points, routes, doors, new_zones, entries, added_on, added_kept, shuts), start))) = (done, left) {
+        if let (true, Some(((world, zones), (points, routes, doors, new_zones, entries, added_on, added_kept, shuts), start, music))) = (done, left) {
             self.start_dirty |= *start != self.start;
+            self.music_dirty |= music.0 != self.world_music || music.1 != self.zone_music;
             self.world_dirty |= *world != self.world || *zones != self.zones;
             self.points_dirty |= *points != self.points || *shuts != self.shuts;
             self.routes_dirty |= *routes != self.routes || *added_on != self.added_on || *added_kept != self.added_kept;
@@ -1200,6 +1217,13 @@ impl EditorDocument {
         }
         if moved > 0 {
             notes.push(Saved::Starts(moved));
+        }
+        if self.music_dirty {
+            map_music::write(&mut self.rom, Map::World, self.world_music);
+            for (z, &m) in self.zone_music.iter().enumerate() {
+                map_music::write(&mut self.rom, Map::Zone(z), m);
+            }
+            self.music_dirty = false;
         }
         if self.world_dirty {
             world::write(&mut self.rom, &self.world);
@@ -1827,6 +1851,45 @@ mod tests {
         let mut p = doc.project_file();
         p.cartridge ^= 1;
         assert_eq!(other.replace_project(p), Err(FileError::OtherCartridge));
+    }
+
+    #[test]
+    fn maps_music_is_changed_undone_restored_saved_and_filed() {
+        let Some(mut doc) = open() else { return };
+        let pumpkin = OnMap::Zone(1);
+        assert_eq!((doc.map_music(OnMap::World), doc.map_music(pumpkin)), (0x06, 0x1E));
+        doc.set_map_music(pumpkin, 0x28);
+        doc.set_map_music(OnMap::World, 0x14);
+        assert!(doc.music_dirty);
+        assert!(doc.map_undo());
+        assert_eq!((doc.map_music(OnMap::World), doc.map_music(pumpkin)), (0x06, 0x28));
+        assert!(doc.map_redo());
+        assert_eq!(doc.map_music(OnMap::World), 0x14);
+        let k = doc.blank_zone(0).unwrap();
+        assert_eq!(doc.map_music(OnMap::NewZone(k)), 0x10, "a blank zone has its base's music");
+        doc.set_map_music(OnMap::NewZone(k), 0x1C);
+
+        let text = files::project_text(&doc.project_file());
+        let world = files::world_text(&doc.world_file());
+        doc.commit().unwrap_or_else(|e| panic!("{e}"));
+        assert!(!doc.music_dirty);
+        let again = EditorDocument::open(doc.original.clone(), Some(doc.rom.clone()));
+        assert_eq!((again.map_music(OnMap::World), again.map_music(pumpkin), again.map_music(OnMap::NewZone(k))), (0x14, 0x28, 0x1C));
+        assert_eq!(again.map_music(OnMap::Zone(0)), 0x10, "the other zones keep theirs");
+
+        let mut other = open().unwrap();
+        other.replace_project(files::read_project(&text).unwrap()).unwrap();
+        assert_eq!((other.map_music(OnMap::World), other.map_music(pumpkin), other.map_music(OnMap::NewZone(0))), (0x14, 0x28, 0x1C));
+        let mut other = open().unwrap();
+        other.replace_world(files::read_world(&world).unwrap()).unwrap();
+        assert_eq!((other.map_music(OnMap::World), other.map_music(pumpkin)), (0x14, 0x1E));
+
+        doc.restore_map(pumpkin);
+        assert_eq!((doc.map_music(pumpkin), doc.map_music(OnMap::World)), (0x1E, 0x14), "a zone's restore leaves the world map's music");
+        doc.restore_map(OnMap::World);
+        assert_eq!(doc.map_music(OnMap::World), 0x06);
+        assert!(doc.map_undo());
+        assert_eq!(doc.map_music(OnMap::World), 0x14);
     }
 
     #[test]

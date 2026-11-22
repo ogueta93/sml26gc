@@ -14,7 +14,7 @@ original's physics, enemies and music. Your base cartridge is never changed.
   tiles.
 - Bring enemies from other levels into a level.
 - Repaint the world map and the zones' maps, change which level each point opens, draw paths,
-  add map points, set doors and exits, and where a new game begins.
+  add map points, set doors and exits, choose each map's music, and where a new game begins.
 - Add new zones, each with its own map, points, levels and progress.
 - Play what is being edited at once, from the level's start or any point.
 - Share levels, zones, world maps and whole projects as files.
@@ -108,13 +108,15 @@ menus), a click on an entry chooses it, and a click elsewhere or Esc closes it.
   $80 work only with this game; their paths can be shut until the point's level is cleared
   (Ctrl+arrow keys). The tab says what the original game does with the chosen point and whether
   it was changed.
+- **Music**: the music the map shown plays (the world map, each zone and each new zone): any
+  the game plays on a map or in a level. Listen plays it, at the volume beside it.
 - **Mario's start** (I in the Points tab): the point where every new game begins, on the world
   map, a zone or a new zone, marked on its map; Go to Mario's start (M) shows it. A project has
   exactly one.
 - **New zones**: the map name opens the list of every map, with Copy zone (Ctrl+N), Blank zone
   (Ctrl+B: each base zone's map and tiles to choose from) and Delete zone (Ctrl+Del). A new zone
   (from the Tree, Pumpkin, Macro, Space or Mario zone) has its own name, picture, points, paths,
-  levels, exits and progress, plays with its base zone's graphics and music, and is entered from
+  levels, exits, music and progress, plays with its base zone's graphics, and is entered from
   any world point.
 
 ## Playing what you edit

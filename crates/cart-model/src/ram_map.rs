@@ -23,6 +23,11 @@ pub const BLOCK_DEFS_LEN: usize = 128 * 4;
 /// The decoded level map: 48 rows x 256 blocks from here to $DFFF (cartridge RAM up to
 /// $BFFF, then work RAM).
 pub const LEVEL_MAP: u16 = 0xB000;
+/// The music request: the sound code starts the music written here (0:0595 for a level, each
+/// map's set-up code for a map).
+pub const MUSIC_REQUEST: u16 = 0xA468;
+/// The music playing, copied from the request by the sound code (04:4078).
+pub const MUSIC_PLAYING: u16 = 0xA469;
 /// The objects of the level being played, 6 bytes each (X page, X, flag, Y page, Y, type).
 pub const OBJECT_RECORDS: u16 = 0xAB06;
 
