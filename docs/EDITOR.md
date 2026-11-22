@@ -139,7 +139,25 @@ From the File menu (Save and Open dialogs start in `exports\`):
 
 The game's 32 levels are never replaced, only edited. Ctrl+Shift+E exports the whole project;
 the project screen imports one as a new project. Imports are kept when the project is saved.
-Files made from a project are derived from your cartridge: for your own use.
+Export cartridge saves the project and writes its cartridge as a `.gb` (in
+`exports/cartridges/`), to play in another emulator or on another computer. Files made from a
+project are derived from your cartridge: for your own use.
+
+## In a web browser
+
+The web package has the editor too (`editor.html`, also opened by Edit and New project on the
+game's start screen). It needs a computer: on a phone or tablet the page says so and the game
+does not offer it. It shares the browser's storage with the game: the base cartridge, the
+projects and the language; a project saved in the editor is on the game's start screen.
+
+- Files exported (levels, zones, projects, cartridges) are downloads; imports open the browser's
+  file chooser, or take a file dropped on the page.
+- Play, Play here and Play from a point open the test game in a tab of its own; the next test
+  game replaces it.
+- The browser keeps Ctrl+N and Ctrl+Shift+N, so Alt+N and Alt+Shift+N do their work there.
+- Closing the page with unsaved changes asks first.
+- Everything stays in that browser only: clearing the site's data deletes the projects. Export
+  a project to keep a copy.
 
 ## Object pictures
 

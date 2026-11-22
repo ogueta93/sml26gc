@@ -184,14 +184,31 @@ pub fn with_text_language<R>(lang: Lang, f: impl FnOnce() -> R) -> R {
 /// The font texts are drawn with: None, the built-in one.
 fn with_font<R>(f: impl FnOnce(Option<&Font>) -> R) -> R {
     let face = FACE.with(|f| f.get());
-    let Some(bytes) = face.bytes() else { return f(None) };
     FONTS.with(|fonts| {
         let mut fonts = fonts.borrow_mut();
         if !fonts.iter().any(|e| e.0 == face) {
-            fonts.push((face, load_ttf_font_from_bytes(bytes).ok()));
+            // in the browser, until the font has come: the built-in one
+            let Some(bytes) = host::font_files::bytes(face) else { return f(None) };
+            let font = load_ttf_font_from_bytes(&bytes).ok();
+            warm(font.as_ref());
+            fonts.push((face, font));
         }
         f(fonts.iter().find(|e| e.0 == face).and_then(|e| e.1.as_ref()))
     })
+}
+
+/// The sizes the editor writes in.
+const TEXT_SIZES: [u16; 11] = [10, 12, 13, 14, 15, 16, 18, 20, 22, 25, 26];
+
+/// `font`'s letters measured in every size, before anything is drawn with it: macroquad makes
+/// a font's glyph texture anew when it fills up, and text already drawn in that frame would
+/// point at the old one (the browser logs "glBindTexture called with an already deleted
+/// texture").
+fn warm(font: Option<&Font>) {
+    let ascii: String = (' '..='~').collect();
+    for size in TEXT_SIZES {
+        measure_text(&ascii, font, size, 1.0);
+    }
 }
 
 /// Draw text at `(x, y)` (its baseline) in the language's font.

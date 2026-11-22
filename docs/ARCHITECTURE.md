@@ -16,6 +16,8 @@ with ports and adapters around them. Behaviour is guarded by the golden fingerpr
 | `crates/fonts` | The fonts a language needs beyond the built-in one (`fonts/`, SIL Open Font License), as bytes. Depends on `i18n` only |
 | `game/` | Application: the game (`sml26gc.exe`) |
 | `editor/` | Application: the editor (`sml26gc_editor.exe`) |
+| `crates/look-capture` | Application: one capture of an object's picture or tiles on a console of the cartridge, and its result as a line of the editor's look cache. Depends on `gb-core` and `cart-model` |
+| `crates/capture-worker` | The editor's capture workers in the browser: `look-capture` as a WebAssembly program of its own (`sml26gc_capture.wasm`), run by `packaging/web/capture-worker.js` |
 | `crates/app-resources` | Build time only: the programs' icons (`assets/icons/`) and Windows version details, for their build scripts |
 | `tools/research/` | Reverse-engineering CLI (`research.exe`) |
 | `regression/` | Golden fingerprint test |
@@ -85,7 +87,23 @@ domain module (`game/src/domain/touch.rs`: layouts, fingers, visibility) and an 
 bindings. A tap that must open the file chooser or enter fullscreen is handled by the page
 itself, inside the browser's event, on the rectangle the program gives it each frame.
 
-`cargo xtask package TARGET` builds `game` and `editor` (for `web`, the game) with the `dist` profile for the target's
+The editor runs in its own page (`editor.html`, only where the main pointer is fine: a mouse or
+trackpad) with the same script and storage. Its composition root takes what differs from
+`editor/src/adapters/platform.rs`: on the web `web_files.rs` (files written under `/downloads/`
+are downloaded; the chooser answers a frame later, so `FileDialogs::arrived` makes the editor
+run the waiting action again, and a dropped file maps to its import), `web_game_tab.rs` (test
+games in a tab named `sml26gc-test`, their arguments as the address's query, shared with the
+desktop launcher in `test_game_args.rs`), `web_sound.rs` and `web_capture.rs`: the object
+pictures are captured by Web Workers instead of threads (`look_loader`, `Capture::Workers`), one
+per spare core (at least 4), each running `sml26gc_capture.wasm`; the editor keeps the queue and
+hands the workers job lines, the page keeping each one's next job waiting, and takes back the
+result lines (`look-capture`; each level's Mario tiles are a job of their own, carried by its
+tiles jobs, as the workers share no memory). Where workers cannot
+start, one job runs each frame on the window's thread. The page
+keeps the browser from acting on the Ctrl/Cmd keys the editor uses and asks before closing with
+unsaved changes.
+
+`cargo xtask package TARGET` builds `game` and `editor` with the `dist` profile for the target's
 triple: on Windows into `target/<triple>/dist/`; for Linux in a Debian 11 container
 (`packaging/linux/Dockerfile`, `xtask/src/linux.rs`) into `target/linux-container/`; for macOS
 for both Apple triples, joined by `lipo` into `target/universal-apple-darwin/dist/`
@@ -94,7 +112,7 @@ only the allowed ones, glibc 2.31 at most; macOS: only the system's, both archit
 at most), assembles `dist/TARGET/sml26gc/` (executables, on macOS in their signed app bundles,
 `packaging/` texts, font licences, the third-party crates' licences from `cargo metadata`) and
 writes the target's outputs: the zip, the `.tar.gz` and the `.deb`, or the macOS zip (`ditto`);
-for the web, the page, the fonts and the icons (`xtask/src/web.rs`) and the zip. A new platform is one entry of `TARGETS` in `xtask/src/main.rs` and
+for the web, the pages, the fonts and the icons (`xtask/src/web.rs`) and the zip. A new platform is one entry of `TARGETS` in `xtask/src/main.rs` and
 its adapters' branches.
 
 ## `gb-core`
@@ -105,6 +123,10 @@ Everything goes through `GameBoy<O: BusObserver>` (alias `Gb`): `run_frame`, `se
 - `BusObserver` is generic (static dispatch); `NoObserver` compiles away. Research tools use it
   to watch memory accesses.
 - No `dyn` in the CPU loop or memory accesses; the MBC is an `enum` (a closed set of hardware).
+- `set_unseen`: a console nobody sees or hears (the editor's captures) draws no screen and mixes
+  no sound; what the program reads is the same.
+- `state`/`set_state` copy the console without its ROM; `divider`/`set_divider` reach the
+  timer's divider, which carries the game's random numbers (the captures' shortcut, `art`).
 
 ## `cart-model`
 
@@ -138,7 +160,7 @@ Each module documents the ROM addresses and formats it relies on.
 | `added_points` | Points numbered from $80 on every map: hooks in bank $0F (level, flag, map pick), their flag bytes at $A1A0, the game zones' kept in bank $24 |
 | `doors` | Which world points enter which zone and where each zone exit leads |
 | `cheats` | What each cheat does in the running game: the invincible patch (0:2E95, 0:1C58), a summoned item in a free object slot, finishing the level through the bell and goal or its secret exit, going to a level, opening the whole map, the active objects, the timer, lives, coins and golden coins, the info panel's values |
-| `art` | Pictures captured from the running game (blocks, map tiles, object looks) |
+| `art` | Pictures captured from the running game (blocks, map tiles, object looks); an object's picture skips the level's start when its type lets it (`Shortcut`) |
 | `live` | What the running game has loaded |
 | `driver` | `GameDriver`: boot to the map, enter a level, back to the map, show a map point |
 | `error` | `CartError` and what a save used |
@@ -177,11 +199,14 @@ editor/src/
 ├─ application/   save (commit + write through a port), art_service (captured graphics),
 │                 exchange (level, zone and project files through the dialogs), music
 │                 (a level's music played by a console of the copy), look_loader (object
-│                 pictures and tiles captured on background threads, one per spare core)
+│                 pictures and tiles captured on background threads, one per spare core, or
+│                 on the browser's capture workers; each job is `look-capture`'s)
 ├─ ports.rs       EditedCopyStore, GameLauncher, PrefsStore, FileDialogs, TextFiles, MenuBar,
-│                 SoundOut, LookStore
+│                 SoundOut, LookStore, CapturePool
 ├─ adapters/      file repository (edited copy, editor.cfg, text files), Win32 file dialogs
-│                 and menu bar, the game's launcher, cpal speakers
+│                 and menu bar, the game's launcher, cpal speakers; in the browser the file
+│                 chooser and downloads, the test game tab, the page's sound and capture workers; platform
+│                 (which adapters, what differs in the browser)
 ├─ ui/            macroquad panels: level, objects, palettes, world map, status bar, widgets;
 │                 grid_edit (painting and clipboard shared by both views), shortcuts (one
 │                 table for keys and button labels), menu (the File menu), files_view
@@ -205,8 +230,8 @@ trace, ROM views, and checks that play the edited data in the emulator (`routech
 
 | Item | Format |
 |---|---|
-| Start the game | `sml26gc.exe <rom> [--project NAME \| --test [--lives N] [--coins N] [--power N]] [--level N [--start X,Y] \| --point P] [--lang ID] [--cheats]` (no rom: the start screen; `--test`: no saves, those lives and coins, 99 and 999 when not given, Mario's power 0-3; `--start`: Mario's left x and feet y for that start only; `--point`: a map point in hex, `PP@K` in new zone K; `--lang`: the language of that game only) |
-| Start the editor (from the game) | `sml26gc_editor.exe [--project NAME \| --new-project]` (the project opened, or the project screen typing a new one) |
+| Start the game | `sml26gc.exe <rom> [--project NAME [--test] \| --test [--lives N] [--coins N] [--power N]] [--level N [--start X,Y] \| --point P] [--lang ID] [--cheats]` (no rom: the start screen, or with `--project NAME --test` that project's cartridge; in the browser the page's query, `?project=NAME&test&level=3`; `--test`: no saves, those lives and coins, 99 and 999 when not given, Mario's power 0-3; `--start`: Mario's left x and feet y for that start only; `--point`: a map point in hex, `PP@K` in new zone K; `--lang`: the language of that game only) |
+| Start the editor (from the game) | `sml26gc_editor.exe [--project NAME \| --new-project]` (the project opened, or the project screen typing a new one); in the browser `editor.html?project=NAME` or `editor.html?new-project` |
 | Base cartridge (checked by SHA-1) | `base_cartridge.txt` |
 | A project (its file, and the cartridge made from it over the base cartridge when missing or older) | `editor/projects/<name>/<name>.nmbproject`, `editor/projects/<name>/<base name> - <name>.gb` |
 | Battery saves | `saves/vanilla/game.sav`, `saves/<project>/game.sav` |
@@ -215,7 +240,7 @@ trace, ROM views, and checks that play the edited data in the emulator (`routech
 | Editor settings (palette zoom, listening volume) | `editor.cfg` |
 | What imported new levels and zones restore to (editor only) | `editor/projects/<name>/restore_points.txt` |
 | Captured object pictures (editor only) | `cache/looks-<hash of the cartridge>.txt` |
-| Level, zone, world map and project files (editor only) | `exports/levels/*.nmblevel`, `exports/zones/*.nmbzone`, `exports/world/*.nmbworld`, `exports/projects/<name>/<name>.nmbproject` (any folder may be chosen) |
+| Level, zone, world map and project files (editor only) | `exports/levels/*.nmblevel`, `exports/zones/*.nmbzone`, `exports/world/*.nmbworld`, `exports/projects/<name>/<name>.nmbproject`, `exports/cartridges/<name>.gb` (any folder may be chosen; downloads in the browser) |
 
 Paths and names live in `host::paths`, so both programs compute them the same way.
 

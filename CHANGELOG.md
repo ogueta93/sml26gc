@@ -11,7 +11,7 @@ What each version of the programs brings, as a person using them notices it. The
 - The game in a web browser (`sml26gc-<version>-web.zip`), on a computer, a phone or a tablet:
   serve the folder with any web server and open it. The cartridge you choose (or drop on the
   page) stays in the browser, with your settings and saves; clearing the site's data removes
-  them. The editor is not part of it.
+  them.
 - On a phone or tablet, on-screen controls: a D-pad that follows the finger, A and B (both at
   once between them), Select, Start and the pause menu, upright like a handheld or across with
   the picture between them, and smaller buttons for fast forward, and with the cheats mode
@@ -19,8 +19,19 @@ What each version of the programs brings, as a person using them notices it. The
   their size and vibration. Turned off with nothing else to play with, a small button brings
   them back.
 
+- The editor in a web browser, in the same package (`editor.html`, or Edit and New project on
+  the game's start screen), on a computer with a mouse or trackpad: it shares the cartridge and
+  the projects with the game in that browser. Exported files are downloaded; imports use the
+  file chooser or a file dropped on the page; test games open in a tab of their own. Alt+N and
+  Alt+Shift+N take the place of Ctrl+N and Ctrl+Shift+N, which the browser keeps. Closing the
+  page with unsaved changes asks first.
+- Editor: File, Export cartridge writes the project's edited copy as a `.gb` file, to play it
+  in another emulator or on another computer.
+
 ### Changed
 
+- Editor: the object pictures and the enemies' tiles are captured several times faster, and
+  the shown level's palette and enemies come first.
 - Display, Scale has a third choice, stretched: the picture fills all the room (the window, or
   the room the on-screen controls leave), out of shape. A phone shows a larger picture with
   fitted than with sharp.

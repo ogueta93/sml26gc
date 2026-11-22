@@ -210,11 +210,11 @@ When building the macOS package, the package command SHALL build each program fo
 - **THEN** it says the macOS package is built on macOS and writes nothing
 
 ### Requirement: The web package's contents
-The web package folder SHALL hold exactly: the game's page (`index.html`), its WebAssembly program, the loader and the page's script, the fonts loaded on demand, the web app manifest and its icons, a read-me, the cartridge notice, the licence text, the legal notice, the changelog, the game's manual and the licences folder. It SHALL NOT hold source files, cartridges or anything made from one, or any saved data.
+The web package folder SHALL hold exactly: the game's page (`index.html`), the editor's page (`editor.html`), their WebAssembly programs and the editor's capture workers' one, the loader, the pages' script and the workers' script, the fonts loaded on demand, the web app manifest and its icons, a read-me, the cartridge notice, the licence text, the legal notice, the changelog, the user manuals of the game and the editor and the licences folder. It SHALL NOT hold source files, cartridges or anything made from one, or any saved data.
 
 #### Scenario: Listing the web package
 - **WHEN** the web package folder is listed
-- **THEN** it holds `index.html`, the `.wasm` and `.js` files, `fonts/`, `manifest.webmanifest`, `icons/`, `README.txt`, `NO-CARTRIDGE.txt`, `LICENSE.txt`, `LEGAL.md`, `CHANGELOG.md`, `manuals/` and `licenses/`, and nothing else
+- **THEN** it holds `index.html`, `editor.html`, the `.wasm` and `.js` files, `fonts/`, `manifest.webmanifest`, `icons/`, `README.txt`, `NO-CARTRIDGE.txt`, `LICENSE.txt`, `LEGAL.md`, `CHANGELOG.md`, `manuals/` (`GAME.md`, `EDITOR.md`) and `licenses/`, and nothing else
 
 ### Requirement: The web read-me
 The web package's read-me SHALL say which browsers play it, how to serve it, where the cartridge and the data are kept, and what to do for each way it can fail to start or work.

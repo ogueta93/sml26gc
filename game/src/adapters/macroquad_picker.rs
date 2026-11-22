@@ -142,13 +142,28 @@ fn set_font(lang: i18n::Lang) {
     FONTS.with(|f| {
         let mut f = f.borrow_mut();
         if !f.iter().any(|(had, _)| *had == face) {
-            match platform::font_bytes(face) {
-                Some(bytes) => f.push((face, load_ttf_font_from_bytes(&bytes).ok())),
-                None if face == fonts::Face::BuiltIn => f.push((face, None)),
-                None => {}
-            }
+            let font = match platform::font_bytes(face) {
+                Some(bytes) => load_ttf_font_from_bytes(&bytes).ok(),
+                None if face == fonts::Face::BuiltIn => None,
+                None => return,
+            };
+            warm(font.as_ref());
+            f.push((face, font));
         }
     });
+}
+
+/// The sizes the start screen writes in.
+const TEXT_SIZES: [u16; 6] = [12, 14, 15, 16, 18, 20];
+
+/// `font`'s letters measured in every size, before anything is drawn: macroquad makes a font's
+/// glyph texture anew when it fills up, and text already drawn in that frame would point at
+/// the old one (the browser logs "glBindTexture called with an already deleted texture").
+fn warm(font: Option<&Font>) {
+    let ascii: String = (' '..='~').collect();
+    for size in TEXT_SIZES {
+        measure_text(&ascii, font, size, 1.0);
+    }
 }
 
 /// `lang`'s name, written in itself when its font is loaded (and drawn with it from now on).

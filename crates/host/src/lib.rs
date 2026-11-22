@@ -7,6 +7,7 @@ pub mod battery;
 pub mod clock;
 pub mod console;
 pub mod file_dialog;
+pub mod font_files;
 pub mod paths;
 pub mod png_out;
 pub mod projects;

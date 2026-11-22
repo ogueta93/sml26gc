@@ -7396,3 +7396,39 @@ id: disimpan %n hari lalu
 ru: сохранено %n дн. назад
 zh: %n天前保存
 ko: %n일 전에 저장됨
+
+en: Export cartridge...
+es: Exportar cartucho...
+ja: カートリッジを書き出す...
+pt: Exportar cartucho...
+fr: Exporter la cartouche...
+de: Modul exportieren...
+it: Esporta cartuccia...
+id: Ekspor kartrid...
+ru: Экспорт картриджа...
+zh: 导出卡带...
+ko: 카트리지 내보내기...
+
+en: Export cartridge
+es: Exportar cartucho
+ja: カートリッジを書き出す
+pt: Exportar cartucho
+fr: Exporter la cartouche
+de: Modul exportieren
+it: Esporta cartuccia
+id: Ekspor kartrid
+ru: Экспорт картриджа
+zh: 导出卡带
+ko: 카트리지 내보내기
+
+en: Cartridge exported to
+es: Cartucho exportado a
+ja: カートリッジの書き出し先:
+pt: Cartucho exportado para
+fr: Cartouche exportee vers
+de: Modul exportiert nach
+it: Cartuccia esportata in
+id: Kartrid diekspor ke
+ru: Картридж экспортирован в
+zh: 卡带已导出到
+ko: 카트리지를 내보낸 위치:

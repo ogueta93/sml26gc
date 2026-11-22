@@ -17,12 +17,17 @@ app-resources.workspace = true
 [dependencies]
 gb-core.workspace = true
 cart-model.workspace = true
+look-capture.workspace = true
 host.workspace = true
 project-model.workspace = true
 macroquad.workspace = true
 i18n.workspace = true
-fonts = { workspace = true, features = ["bundled"] }
+fonts.workspace = true
+
+# Off the web: sound and the fonts in the program (the page gives the web build its own).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 cpal.workspace = true
+fonts = { workspace = true, features = ["bundled"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys.workspace = true

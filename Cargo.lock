@@ -132,6 +132,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
+name = "capture-worker"
+version = "1.2.0"
+dependencies = [
+ "look-capture",
+]
+
+[[package]]
 name = "cart-model"
 version = "1.2.0"
 dependencies = [
@@ -317,6 +324,7 @@ dependencies = [
  "gb-core",
  "host",
  "i18n",
+ "look-capture",
  "macroquad",
  "project-model",
  "ttf-parser",
@@ -524,6 +532,7 @@ name = "host"
 version = "1.2.0"
 dependencies = [
  "core-foundation-sys",
+ "fonts",
  "gb-core",
  "i18n",
  "png",
@@ -696,6 +705,14 @@ name = "log"
 version = "0.4.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
+
+[[package]]
+name = "look-capture"
+version = "1.2.0"
+dependencies = [
+ "cart-model",
+ "gb-core",
+]
 
 [[package]]
 name = "mach2"

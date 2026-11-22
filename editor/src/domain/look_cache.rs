@@ -5,6 +5,7 @@
 //! and `t level kind tiles` (hex, no spaces) for the sprite tiles an object shows over its
 //! animation (`art::object_tiles`). An older cache is not read, so it is captured again.
 use cart_model::art::Look;
+use look_capture::{parse_picture, parse_tiles, picture_line, tiles_line};
 
 const HEAD: &str = "NMB looks 5";
 
@@ -16,16 +17,12 @@ pub type Tiles = (usize, u8, Vec<u8>);
 pub fn to_text(entries: &[Entry], tiles: &[Tiles]) -> String {
     let mut out = format!("{HEAD}\n");
     for (l, k, t) in tiles {
-        out += &format!("t {l} {k} {}\n", t.iter().map(|b| format!("{b:02x}")).collect::<String>());
+        out += &tiles_line(*l, *k, t);
+        out.push('\n');
     }
     for (l, k, look) in entries {
-        match look {
-            None => out += &format!("{l} {k} -\n"),
-            Some(lk) => {
-                let px: String = lk.px.iter().map(|p| p.map_or('.', |s| (b'0' + s) as char)).collect();
-                out += &format!("{l} {k} {} {} {} {} {} {px}\n", lk.w, lk.h, lk.dx, lk.dy, lk.sets);
-            }
-        }
+        out += &picture_line(*l, *k, look.as_ref());
+        out.push('\n');
     }
     out
 }
@@ -38,28 +35,7 @@ pub fn from_text(text: &str) -> (Vec<Entry>, Vec<Tiles>) {
         return (Vec::new(), Vec::new());
     }
     let (tiles, pictures): (Vec<&str>, Vec<&str>) = lines.partition(|l| l.starts_with("t "));
-    (pictures.into_iter().filter_map(entry).collect(), tiles.into_iter().filter_map(tiles_entry).collect())
-}
-
-fn tiles_entry(line: &str) -> Option<Tiles> {
-    let f: Vec<&str> = line.split(' ').collect();
-    let (l, k) = (f.get(1)?.parse().ok()?, f.get(2)?.parse().ok()?);
-    let hex = f.get(3).copied().unwrap_or("");
-    let t = (0..hex.len() / 2).map(|i| u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).ok()).collect::<Option<Vec<u8>>>()?;
-    Some((l, k, t))
-}
-
-fn entry(line: &str) -> Option<Entry> {
-    let f: Vec<&str> = line.split(' ').collect();
-    let (l, k) = (f.first()?.parse().ok()?, f.get(1)?.parse().ok()?);
-    if f.get(2) == Some(&"-") {
-        return Some((l, k, None));
-    }
-    let (w, h): (usize, usize) = (f.get(2)?.parse().ok()?, f.get(3)?.parse().ok()?);
-    let (dx, dy) = (f.get(4)?.parse().ok()?, f.get(5)?.parse().ok()?);
-    let sets = f.get(6)?.parse().ok()?;
-    let px: Vec<Option<u8>> = f.get(7)?.bytes().map(|b| (b != b'.').then(|| b - b'0')).collect();
-    (px.len() == w * h && px.iter().all(|p| p.is_none_or(|s| s < 4))).then_some((l, k, Some(Look { w, h, px, dx, dy, sets })))
+    (pictures.into_iter().filter_map(parse_picture).collect(), tiles.into_iter().filter_map(parse_tiles).collect())
 }
 
 #[cfg(test)]

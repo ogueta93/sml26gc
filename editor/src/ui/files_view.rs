@@ -7,6 +7,7 @@ use super::Editor;
 use crate::application::exchange::{self, ExchangeError};
 use crate::domain::document::ZoneRefusal;
 use crate::domain::files::{FileError, Origin, OriginOf};
+use crate::ports::FileKind;
 use cart_model::levels::LEVELS;
 use cart_model::original_points::OnMap;
 use macroquad::prelude::*;
@@ -45,6 +46,14 @@ impl Editor {
     }
 
     pub(super) fn run_pending_file(&mut self) {
+        if self.dialogs.arrived() {
+            if let Some(a) = self.last_open.take() {
+                self.run_file(a);
+            }
+        }
+        if let Some(a) = self.dialogs.dropped().and_then(|k| drop_action(k, self.in_world, self.world_map)) {
+            self.run_file(a);
+        }
         let held = super::shortcuts::MODIFIERS.iter().any(|&k| is_key_down(k))
             || [MouseButton::Left, MouseButton::Right, MouseButton::Middle].iter().any(|&b| is_mouse_button_down(b));
         if held {
@@ -88,12 +97,15 @@ impl Editor {
     }
 
     fn run_file(&mut self, a: Action) {
+        if matches!(a, Action::ImportLevel | Action::ReplaceLevel | Action::ImportZone | Action::ReplaceZone) {
+            self.last_open = Some(a);
+        }
         let lang = self.lang;
         let (dialogs, files) = (&*self.dialogs, &*self.text_files);
         let l = self.cur;
         let status = match a {
             Action::ExportLevel => exchange::export_level(&self.doc, l, &self.project, &Self::export_name(self.doc.level_name(l), format!("{} {} {l:02}", self.cartridge_name(), tr(lang, "level"))), dialogs, files)
-                .map(|p| p.map(|p| format!("{} {l:02} {} {}", tr(lang, "Level"), tr(lang, "exported to"), p.display()))),
+                .map(|p| p.map(|p| format!("{} {l:02} {} {}", tr(lang, "Level"), tr(lang, "exported to"), dialogs.shown(&p)))),
             Action::ImportLevel => match exchange::import_level(&mut self.doc, dialogs, files) {
                 Ok(Some(n)) => {
                     self.select_level(n);
@@ -111,14 +123,14 @@ impl Editor {
                     other => other.map(|_| None),
                 }
             }
-            Action::ExportZone if self.world_map == OnMap::World => exchange::export_world(&self.doc, &format!("{} {}", self.project, tr(lang, "world map")), dialogs, files).map(|p| p.map(|p| format!("{} {}", tr(lang, "World map exported to"), p.display()))),
+            Action::ExportZone if self.world_map == OnMap::World => exchange::export_world(&self.doc, &format!("{} {}", self.project, tr(lang, "world map")), dialogs, files).map(|p| p.map(|p| format!("{} {}", tr(lang, "World map exported to"), dialogs.shown(&p)))),
             Action::ExportZone => {
                 let named = match self.world_map {
                     OnMap::NewZone(k) => self.doc.new_zones.get(k).map_or("", |z| z.name.as_str()),
                     _ => "",
                 };
                 let name = Self::export_name(named, format!("{} {}", self.cartridge_name(), self.map_name(self.world_map)));
-                exchange::export_zone(&self.doc, self.world_map, &self.project, &name, dialogs, files).map(|p| p.map(|p| format!("{} {}", tr(lang, "Zone exported to"), p.display())))
+                exchange::export_zone(&self.doc, self.world_map, &self.project, &name, dialogs, files).map(|p| p.map(|p| format!("{} {}", tr(lang, "Zone exported to"), dialogs.shown(&p))))
             }
             Action::ImportZone => match exchange::import_zone(&mut self.doc, dialogs, files) {
                 Ok(Some((k, start))) => {
@@ -141,7 +153,13 @@ impl Editor {
                 }
                 other => other.map(|_| None),
             },
-            Action::ExportProject => exchange::export_project(&self.doc, &self.project, dialogs, files).map(|p| p.map(|p| format!("{} {}", tr(lang, "Project exported to"), p.display()))),
+            Action::ExportCartridge => {
+                if !self.save() {
+                    return;
+                }
+                exchange::export_cartridge(&self.doc.rom, &self.project, &*self.dialogs, &*self.text_files).map(|p| p.map(|p| format!("{} {}", tr(lang, "Cartridge exported to"), self.dialogs.shown(&p))))
+            }
+            Action::ExportProject => exchange::export_project(&self.doc, &self.project, dialogs, files).map(|p| p.map(|p| format!("{} {}", tr(lang, "Project exported to"), dialogs.shown(&p)))),
             Action::ReplaceZone if self.world_map == OnMap::World => match exchange::import_world(&mut self.doc, dialogs, files) {
                 Ok(Some((points, exits, start))) => {
                     self.clipboard = None;
@@ -192,5 +210,32 @@ impl Editor {
                 FileError::OtherCartridge => tr(lang, "This project belongs to another cartridge; nothing was changed.").into(),
             },
         }
+    }
+}
+
+/// What a file dropped on the editor does where it is: a level file imported as a new level in
+/// the level editor; a zone file imported as a new zone, and a world map file replacing the world
+/// map while it is shown, in the world map editor.
+fn drop_action(kind: FileKind, in_world: bool, map: OnMap) -> Option<Action> {
+    match kind {
+        FileKind::Level if !in_world => Some(Action::ImportLevel),
+        FileKind::Zone if in_world => Some(Action::ImportZone),
+        FileKind::World if in_world && map == OnMap::World => Some(Action::ReplaceZone),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_dropped_file_does_what_its_import_does_there() {
+        assert_eq!(drop_action(FileKind::Level, false, OnMap::World), Some(Action::ImportLevel));
+        assert_eq!(drop_action(FileKind::Level, true, OnMap::World), None);
+        assert_eq!(drop_action(FileKind::Zone, true, OnMap::Zone(0)), Some(Action::ImportZone));
+        assert_eq!(drop_action(FileKind::World, true, OnMap::World), Some(Action::ReplaceZone));
+        assert_eq!(drop_action(FileKind::World, true, OnMap::NewZone(0)), None);
+        assert_eq!(drop_action(FileKind::Project, false, OnMap::World), None, "projects go in on the project screen");
     }
 }

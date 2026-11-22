@@ -9,11 +9,12 @@ use cart_model::levels::LEVELS;
 use cart_model::original_points::OnMap;
 
 /// The File menu, top to bottom (None: a separator). An entry's id is its place here + 1.
-const FILE_MENU: [Option<Action>; 13] = [
+const FILE_MENU: [Option<Action>; 14] = [
     Some(Action::Save),
     None,
     Some(Action::Projects),
     Some(Action::ExportProject),
+    Some(Action::ExportCartridge),
     None,
     Some(Action::NewBlankLevel),
     Some(Action::ExportLevel),
@@ -45,6 +46,7 @@ fn label(lang: Lang, a: Action) -> &'static str {
         Action::ImportZone => tr(lang, "Import zone as a new zone..."),
         Action::ReplaceZone => tr(lang, "Replace this zone from a file..."),
         Action::ExportProject => tr(lang, "Export project..."),
+        Action::ExportCartridge => tr(lang, "Export cartridge..."),
         _ => "",
     }
 }

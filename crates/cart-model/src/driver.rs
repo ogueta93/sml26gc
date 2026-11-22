@@ -20,6 +20,10 @@ pub trait GameDriver {
     /// copies the level's header (mode $0B, routine 01:5579 reads the level number at
     /// $A269) put the wanted number there first. Returns once the level is playing.
     fn enter_level(&mut self, level: u8) -> bool;
+    /// The first half of `enter_level`: up to the level header, with `level`'s number put there.
+    fn enter_level_header(&mut self, level: u8) -> bool;
+    /// The rest of `enter_level` after `enter_level_header`: the level loads and plays.
+    fn finish_entering(&mut self) -> bool;
     /// Enter `level` from the world map whatever point the game's own Mario stands on:
     /// Start only works on a point that opens a level (0F:41B1), so first put him on one
     /// ($A840 = point number; the special points 0F:418F-0F:41A1 checks are avoided, and
@@ -85,20 +89,30 @@ impl<O: BusObserver> GameDriver for GameBoy<O> {
     }
 
     fn enter_level(&mut self, level: u8) -> bool {
-        let mut set = false;
+        self.enter_level_header(level) && self.finish_entering()
+    }
+
+    fn enter_level_header(&mut self, level: u8) -> bool {
         for f in 0..900u32 {
             let m = self.mode();
-            if m == GameMode::LevelHeader && !set {
+            if m == GameMode::LevelHeader {
                 self.write(LEVEL_NUMBER, level);
-                set = true;
+                return true;
             }
-            if set && m == GameMode::Playing {
+            self.run_frame_with(start_if(m == GameMode::Map && f % 30 < 4));
+        }
+        false
+    }
+
+    fn finish_entering(&mut self) -> bool {
+        for _ in 0..900u32 {
+            if self.mode() == GameMode::Playing {
                 for _ in 0..3 {
                     self.run_frame_with(Buttons::NONE);
                 }
                 return true;
             }
-            self.run_frame_with(start_if(!set && m == GameMode::Map && f % 30 < 4));
+            self.run_frame_with(Buttons::NONE);
         }
         false
     }

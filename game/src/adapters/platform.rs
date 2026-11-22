@@ -22,9 +22,13 @@ pub fn arguments() -> Vec<String> {
 /// Can the program be quit from its own menus? (A page is closed instead.)
 pub const CAN_QUIT: bool = !cfg!(target_arch = "wasm32");
 
-/// Can the start screen open the editor?
+/// Can the start screen open the editor? (In the browser only on a computer: the editor needs a
+/// mouse or trackpad and a keyboard.)
 pub fn can_edit() -> bool {
-    !cfg!(target_arch = "wasm32")
+    #[cfg(target_arch = "wasm32")]
+    return has_keyboard();
+    #[cfg(not(target_arch = "wasm32"))]
+    true
 }
 
 /// Open the editor on `project`, or on its project screen typing a new one. The error names
@@ -32,8 +36,12 @@ pub fn can_edit() -> bool {
 pub fn open_editor(project: Option<&str>) -> Result<(), String> {
     #[cfg(target_arch = "wasm32")]
     {
-        let _ = project;
-        Err("the editor is not available here".into())
+        let args: Vec<String> = match project {
+            Some(p) => vec!["--project".into(), p.into()],
+            None => vec!["--new-project".into()],
+        };
+        host::web::open_page("_blank", &format!("editor.html?{}", host::web::query(&args)));
+        Ok(())
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
@@ -68,31 +76,14 @@ pub fn run_tag() -> u32 {
     std::process::id()
 }
 
-/// The font file of `face` (None: the built-in font, or in the browser one not downloaded yet,
-/// whose download this starts; it is kept in the storage for the next visits).
+/// The font file of `face` (`host::font_files`).
 pub fn font_bytes(face: fonts::Face) -> Option<std::borrow::Cow<'static, [u8]>> {
-    #[cfg(target_arch = "wasm32")]
-    {
-        let file = face.file()?;
-        let kept = host::storage::read(host::web::fonts_dir().join(file)).ok();
-        if kept.is_none() {
-            host::web::call_text(host::web::TextCall::FetchFont, file);
-        }
-        kept.map(std::borrow::Cow::Owned)
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    face.bytes().map(std::borrow::Cow::Borrowed)
+    host::font_files::bytes(face)
 }
 
 /// Can `face` be drawn with now, without downloading anything?
 pub fn font_ready(face: fonts::Face) -> bool {
-    #[cfg(target_arch = "wasm32")]
-    return face.file().is_none_or(|f| host::storage::is_file(host::web::fonts_dir().join(f)));
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let _ = face;
-        true
-    }
+    host::font_files::ready(face)
 }
 
 /// Can the page go fullscreen from a button of its own? (The desktop has F11 and the Display

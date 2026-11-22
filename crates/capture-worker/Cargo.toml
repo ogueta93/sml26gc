@@ -1,0 +1,15 @@
+[package]
+name = "capture-worker"
+description = "The editor's capture workers in the browser: look-capture as a WebAssembly program run by a Web Worker."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[lib]
+name = "sml26gc_capture"
+crate-type = ["cdylib"]
+
+[dependencies]
+look-capture.workspace = true

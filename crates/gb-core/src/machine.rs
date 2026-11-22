@@ -90,6 +90,24 @@ impl<O: BusObserver> GameBoy<O> {
         self.bus.apu.out.clear();
     }
 
+    /// A console nobody sees or hears (the editor's captures read the video memory and the
+    /// sprite table): the screen is not drawn and no sound is made, about a third quicker. What
+    /// the program reads is the same either way.
+    pub fn set_unseen(&mut self, unseen: bool) {
+        self.bus.ppu.unseen = unseen;
+        self.bus.apu.unheard = unseen;
+    }
+
+    /// The timer's 16-bit divider (DIV, $FF04, is its high byte), which programs read for
+    /// random numbers.
+    pub fn divider(&self) -> u16 {
+        self.bus.div
+    }
+
+    pub fn set_divider(&mut self, divider: u16) {
+        self.bus.div = divider;
+    }
+
     pub fn sample_rate(&self) -> u32 {
         self.bus.apu.sample_rate()
     }

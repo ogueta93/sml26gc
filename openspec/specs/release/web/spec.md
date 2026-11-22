@@ -66,11 +66,15 @@ Two pages of the same site open at once SHALL see each other's saved files: a fi
 - **THEN** the other tab uses the new language from its next start screen on
 
 ### Requirement: What the browser cannot do
-In the browser the game SHALL offer nothing it cannot do there: no Quit (the page is closed instead), no opening of the editor until the web editor exists, and no command-line modes. Settings that only exist on the desktop SHALL be hidden there.
+In the browser the game SHALL offer nothing it cannot do there: no Quit (the page is closed instead) and no command-line modes. Opening the editor SHALL be offered where the editor's page runs (see `editor/browser`) and open it in a new tab. Settings that only exist on the desktop SHALL be hidden there.
 
 #### Scenario: The pause menu in the browser
 - **WHEN** the pause menu is opened in the web game
 - **THEN** it has no Quit row
+
+#### Scenario: Edit from the start screen on a computer
+- **WHEN** a project is chosen on the web game's start screen on a computer and Edit is chosen
+- **THEN** the editor's page opens in a new tab with that project, and the game's tab stays on its start screen
 
 ### Requirement: Arguments from the address
 The web game SHALL take, from its page's address, the arguments the desktop game takes from its command line that make sense in the browser (`project`, `level`, `start`, `point`, `test`, `lives`, `coins`, `power`, `lang`, `cheats`), with the same meaning.
