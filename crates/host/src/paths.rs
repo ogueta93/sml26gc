@@ -262,6 +262,13 @@ mod tests {
         assert_eq!(bundle_of(Path::new("/x/Contents/MacOS")), None);
         assert_eq!(other_bundle_program(editor, GAME_PROGRAM, GAME_BUNDLE).unwrap(), Path::new("/Applications/SML2 6GC.app/Contents/MacOS/sml26gc"));
         assert_eq!(other_bundle_program(Path::new("/Users/u/target/release"), GAME_PROGRAM, GAME_BUNDLE), None);
+    }
+
+    /// `/Users/u` is an absolute home only on Unix (on Windows it lacks a drive).
+    #[cfg(unix)]
+    #[test]
+    fn the_macos_apps_data_folder() {
+        let editor = Path::new("/Applications/SML2 6GC Editor.app/Contents/MacOS");
         assert_eq!(app_support_dir(editor, Some("/Users/u".into())), Path::new("/Users/u/Library/Application Support/sml26gc"));
         assert_eq!(app_support_dir(editor, None), editor);
     }
