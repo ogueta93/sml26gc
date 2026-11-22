@@ -7,7 +7,7 @@ use std::time::Instant;
 #[test]
 #[ignore]
 fn frames_per_second() {
-    let Some(path) = std::env::var("SML2_ROM").ok().map(Into::into).or_else(|| host::find_rom(None)) else {
+    let Some(path) = host::test_cartridge() else {
         eprintln!("bench: no ROM; skipped");
         return;
     };

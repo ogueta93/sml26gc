@@ -327,7 +327,7 @@ mod tests {
     /// game is in the new zone, on its point (SHOT=file.png keeps the screen).
     #[test]
     fn a_new_game_begins_in_the_new_zone_holding_the_start() {
-        let Some(path) = host::find_rom(None) else { return };
+        let Some(path) = host::test_cartridge() else { return };
         let mut doc = project_model::document::EditorDocument::open(std::fs::read(path).unwrap(), None);
         let k = doc.blank_zone(1).unwrap();
         let point = doc.new_zones[k].entry;
@@ -346,7 +346,7 @@ mod tests {
     fn a_new_zone_plays_its_own_music() {
         use cart_model::ram_map::MUSIC_PLAYING;
         use cart_model::original_points::OnMap;
-        let Some(path) = host::find_rom(None) else { return };
+        let Some(path) = host::test_cartridge() else { return };
         let mut doc = project_model::document::EditorDocument::open(std::fs::read(path).unwrap(), None);
         let k = doc.blank_zone(1).unwrap();
         doc.set_map_music(OnMap::NewZone(k), 0x1C);

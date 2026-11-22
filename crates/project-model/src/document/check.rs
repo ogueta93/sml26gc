@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn the_game_levels_have_no_warnings_but_their_objects_missing_at_the_start() {
-        let Some(rom) = host::find_rom(None) else {
+        let Some(rom) = host::test_cartridge() else {
             eprintln!("no cartridge found: test skipped");
             return;
         };
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn the_game_idle_block_contents_are_not_warned_but_a_placed_one_is() {
-        let Some(rom) = host::find_rom(None) else { return };
+        let Some(rom) = host::test_cartridge() else { return };
         let mut doc = EditorDocument::open(std::fs::read(rom).unwrap(), None);
         assert!(!doc.warnings(5).iter().any(|w| matches!(w, Warning::IdleBlockContent(_))), "level 05's heart inside a hill");
         // a hidden mushroom put next to the game's heart, inside the same hill

@@ -451,7 +451,7 @@ mod tests {
     use cart_model::doors;
 
     fn open() -> Option<EditorDocument> {
-        let rom = host::find_rom(None)?;
+        let rom = host::test_cartridge()?;
         Some(EditorDocument::open(std::fs::read(rom).ok()?, None))
     }
 
