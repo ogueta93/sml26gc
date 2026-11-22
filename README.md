@@ -35,8 +35,9 @@ The game was made in three revisions with the same title: revision 0 (often name
 "(Rev 1)", SHA-1 `bba408539ecbf8d322324956d859bc86e2a9977b`) and revision 2 are refused, as is
 any modified file. A file's revision is the byte at address $014C of its header (`01` for
 revision 1); its SHA-1 says whether it is exactly the supported dump (`sha1sum FILE` on Linux,
-`shasum -a 1 FILE` on macOS, `Get-FileHash -Algorithm SHA1 FILE` in Windows PowerShell). Cartridges, saves and projects never go into this
-repository (see `.gitignore`). Not affiliated with or endorsed by Nintendo.
+`shasum -a 1 FILE` on macOS, `Get-FileHash -Algorithm SHA1 FILE` in Windows PowerShell).
+Cartridges, saves and projects never go into this repository (see `.gitignore`). Not affiliated
+with or endorsed by Nintendo.
 
 ## How it is made
 
@@ -49,8 +50,8 @@ to its recorded behaviour) and the specs in `openspec/specs/`.
 ## Playing
 
 The programs run on Windows 11, Linux (x86-64; Debian 11, Ubuntu 20.04 and later
-distributions) and macOS 11 Big Sur or later (Apple Silicon and Intel). Nothing needs installing besides them; the first time, either program asks for
-your cartridge file.
+distributions) and macOS 11 Big Sur or later (Apple Silicon and Intel). Nothing needs installing
+besides them; the first time, either program asks for your cartridge file.
 
 - **Windows**: unpack `sml26gc-<version>-windows-x64.zip` in a folder you can write to, such as
   Documents, and open `sml26gc.exe` or `sml26gc_editor.exe`.
