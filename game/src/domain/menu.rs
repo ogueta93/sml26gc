@@ -4,11 +4,13 @@
 //! It changes `Settings` in place; saving them, switching full screen and carrying out the
 //! cheats is the caller's job.
 use super::cheats::{draw_icon, Cheat, Cheats, Icon};
+use super::devices::{Devices, Prompts};
 use super::i18n::{texts, Texts, LANGS, LANG_NAMES};
 use super::keys::{self, Key, DEFAULT_KEYS};
 use super::overlay::{text_width, Canvas};
 use super::pad::{self, Input, PadButton, DEFAULT_PAD};
-use super::settings::Settings;
+use super::settings::{Scale, Settings};
+use super::touch::{TouchShow, TouchSize};
 use crate::ports::{Gamepad, Keyboard};
 use cart_model::cheats::Item;
 use cart_model::GameMode;
@@ -59,10 +61,21 @@ const IT_CHEATS: usize = 9;
 const IT_RESTART: usize = 10;
 /// Rows of the level list shown at once (Left and Right move by a page).
 const LEVEL_ROWS: usize = 10;
-/// The Controls screen's rows before the bindings (the Input row).
-const CONTROLS_FIRST: usize = 1;
 /// Controls rows on the screen at once (the rest scroll into view).
 const CONTROLS_SHOWN: usize = 15;
+
+/// A row of the Controls screen; which there are depends on the device's inputs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ControlsRow {
+    /// The keyboard's or the controller's bindings, with both there.
+    Input,
+    Binding(usize),
+    Restore,
+    /// The on-screen controls: when they show, their size, vibration.
+    Touch,
+    TouchSize,
+    Vibration,
+}
 /// Language rows on the screen at once (the rest scroll into view).
 const LANGUAGES_SHOWN: usize = 8;
 
@@ -132,6 +145,7 @@ pub struct Menu {
     cheats: Option<CheatMenu>,
     /// One-time cheats already done while the menu is open.
     done: Vec<Cheat>,
+    devices: Devices,
 }
 
 impl Menu {
@@ -156,7 +170,7 @@ impl Menu {
             items.push(IT_FILES);
         }
         items.push(IT_QUIT);
-        Menu { screen: Screen::Main, sel: 0, blink: 0, items, in_level, cheats: None, done: Vec::new() }
+        Menu { screen: Screen::Main, sel: 0, blink: 0, items, in_level, cheats: None, done: Vec::new(), devices: Devices::default() }
     }
 
     /// With the cheats mode on: the "Debug / cheats" entry, after the game's own pause.
@@ -184,10 +198,41 @@ impl Menu {
         self
     }
 
+    /// Where the program cannot be quit from its menu (the browser): no "Quit".
+    pub fn without_quit(mut self) -> Menu {
+        self.items.retain(|&i| i != IT_QUIT);
+        self
+    }
+
     /// A test game from the editor: no "File select" (it keeps no saves to choose from).
     pub fn without_file_select(mut self) -> Menu {
         self.items.retain(|&i| i != IT_FILES);
         self
+    }
+
+    /// The inputs there are now (Controls shows only theirs).
+    pub fn set_devices(&mut self, devices: Devices) {
+        self.devices = devices;
+    }
+
+    fn controls_rows(&self) -> Vec<ControlsRow> {
+        let d = self.devices;
+        let mut rows = Vec::new();
+        if d.keyboard && d.controller {
+            rows.push(ControlsRow::Input);
+        }
+        if d.keyboard || d.controller {
+            rows.extend((0..keys::KEYS).map(ControlsRow::Binding));
+            rows.push(ControlsRow::Restore);
+        }
+        if d.touch {
+            rows.extend([ControlsRow::Touch, ControlsRow::TouchSize, ControlsRow::Vibration]);
+        }
+        rows
+    }
+
+    fn controls_row(&self, row: ControlsRow) -> usize {
+        self.controls_rows().iter().position(|&r| r == row).unwrap_or(0)
     }
 
     fn usable(&self, c: Cheat) -> bool {
@@ -224,6 +269,7 @@ impl Menu {
         };
         let mut m = Menu::new(GameMode::Playing).with_restart().with_cheats(CheatMenu { state: Cheats { invincible: true, ..Cheats::default() }, icons, secret_exit: true, levels: (0..40).map(|l| (l, if l >= 32 { "MY LEVEL".to_string() } else { String::new() })).collect() });
         m.screen = screen;
+        m.devices = Devices { keyboard: true, controller: true, touch: true, touch_shown: true };
         m
     }
 
@@ -231,7 +277,7 @@ impl Menu {
         match self.screen {
             Screen::Main => self.items.len(),
             Screen::Confirm(_) => 2,
-            Screen::Controls => CONTROLS_FIRST + keys::KEYS + 1,
+            Screen::Controls => self.controls_rows().len().max(1),
             Screen::Display => 3,
             Screen::Sound => 1,
             Screen::Language => LANGS,
@@ -249,9 +295,12 @@ impl Menu {
 
     pub fn update(&mut self, input: &MenuInput, st: &mut Settings) -> Action {
         self.blink = self.blink.wrapping_add(1);
+        if let Some(shown) = self.devices.input(st.input) {
+            st.input = shown;
+        }
         if let Screen::Waiting(b) = self.screen {
-            let row = CONTROLS_FIRST + b;
-            if input.escape {
+            let row = self.controls_row(ControlsRow::Binding(b));
+            if input.escape || self.devices.input(st.input).is_none() {
                 self.go(Screen::Controls, row);
                 return Action::None;
             }
@@ -280,6 +329,7 @@ impl Menu {
         }
         let (up, down, left, right, ok, back) = (input.up, input.down, input.left, input.right, input.ok, input.back);
         let n = self.count();
+        self.sel = self.sel.min(n - 1);
         // Yes/No sit side by side, so they are chosen with Left/Right; lists use Up/Down.
         let (prev, next) = if matches!(self.screen, Screen::Confirm(_) | Screen::Summon) { (left, right) } else { (up, down) };
         if prev {
@@ -315,7 +365,13 @@ impl Menu {
                 if ok {
                     match self.items[self.sel] {
                         IT_CONTINUE => return Action::Close,
-                        IT_CONTROLS => self.go(Screen::Controls, 0),
+                        IT_CONTROLS => {
+                            // a connected controller comes first: its bindings are shown
+                            if self.devices.controller {
+                                st.input = Input::Controller;
+                            }
+                            self.go(Screen::Controls, 0)
+                        }
                         IT_DISPLAY => self.go(Screen::Display, 0),
                         IT_SOUND => self.go(Screen::Sound, 0),
                         IT_LANGUAGE => self.go(Screen::Language, st.lang),
@@ -339,17 +395,24 @@ impl Menu {
                     self.go(Screen::Main, self.pos(item));
                 }
             }
-            Screen::Controls => match self.sel {
-                0 if ok || step != 0 => {
-                    st.input = if st.input == Input::Keyboard { Input::Controller } else { Input::Keyboard };
+            Screen::Controls => {
+                let turn = |i: usize| (i as i32 + if step == 0 { 1 } else { step }).rem_euclid(3) as usize;
+                let change = ok || step != 0;
+                match self.controls_rows().get(self.sel).copied() {
+                    Some(ControlsRow::Input) if change => {
+                        st.input = if st.input == Input::Keyboard { Input::Controller } else { Input::Keyboard };
+                    }
+                    Some(ControlsRow::Binding(b)) if ok => self.screen = Screen::Waiting(b),
+                    Some(ControlsRow::Restore) if ok => match st.input {
+                        Input::Keyboard => st.keys = DEFAULT_KEYS,
+                        Input::Controller => st.pad = DEFAULT_PAD,
+                    },
+                    Some(ControlsRow::Touch) if change => st.touch = TouchShow::ALL[turn(TouchShow::ALL.iter().position(|&t| t == st.touch).unwrap_or(0))],
+                    Some(ControlsRow::TouchSize) if change => st.touch_size = TouchSize::ALL[turn(TouchSize::ALL.iter().position(|&t| t == st.touch_size).unwrap_or(1))],
+                    Some(ControlsRow::Vibration) if change => st.vibrate = !st.vibrate,
+                    _ => {}
                 }
-                s if ok && s < CONTROLS_FIRST + keys::KEYS && s >= CONTROLS_FIRST => self.screen = Screen::Waiting(s - CONTROLS_FIRST),
-                s if ok && s == CONTROLS_FIRST + keys::KEYS => match st.input {
-                    Input::Keyboard => st.keys = DEFAULT_KEYS,
-                    Input::Controller => st.pad = DEFAULT_PAD,
-                },
-                _ => {}
-            },
+            }
             Screen::Display => {
                 let change = step != 0 || ok;
                 match self.sel {
@@ -360,7 +423,8 @@ impl Menu {
                         st.fullscreen = !st.fullscreen;
                     }
                     2 if change => {
-                        st.integer_scale = !st.integer_scale;
+                        let i = Scale::ALL.iter().position(|&s| s == st.scale).unwrap_or(0) as i32;
+                        st.scale = Scale::ALL[(i + if step == 0 { 1 } else { step }).rem_euclid(Scale::ALL.len() as i32) as usize];
                     }
                     _ => {}
                 }
@@ -445,7 +509,7 @@ impl Menu {
                         c.cursor(x + 9, ty, 3);
                     }
                 }
-                c.footer(x, y + h - 2, w, t.footer_main);
+                c.footer(x, y + h - 2, w, &self.prompt(t.footer_main, st));
             }
             Screen::Confirm(item) => {
                 let (x, y, w, h) = (14, 40, 132, 64);
@@ -459,23 +523,29 @@ impl Menu {
                         c.cursor(tx - 9, y + 32, 3);
                     }
                 }
-                c.footer(x, y + h - 2, w, t.footer_language);
+                c.footer(x, y + h - 2, w, &self.prompt(t.footer_language, st));
             }
             Screen::Controls => {
-                let (x, y, w, h) = (2, 5, 156, 136);
+                // the input, every binding of it, Restore, then the on-screen controls (only the
+                // inputs there are), between the title and the footer (the footer says how to go
+                // back); the rows scroll with the cursor, a small arrow at the side showing there
+                // are more above or below
+                let rows = self.controls_rows();
+                let shown = rows.len().min(CONTROLS_SHOWN);
+                let h = 16 + shown as i32 * 8;
+                let (x, y, w) = (2, if shown == CONTROLS_SHOWN { 5 } else { (H as i32 - h) / 2 }, 156);
                 c.frame(x, y, w, h);
                 c.title(x, y, w, t.controls);
-                // the input, every binding of it, then Restore, between the title and the footer
-                // (the footer says how to go back); the rows scroll with the cursor, a small
-                // arrow at the side showing there are more above or below
-                let rows = CONTROLS_FIRST + keys::KEYS + 1;
-                let top = (self.sel + 1).saturating_sub(CONTROLS_SHOWN).min(rows - CONTROLS_SHOWN);
-                for i in top..top + CONTROLS_SHOWN {
+                let top = (self.sel + 1).saturating_sub(shown).min(rows.len() - shown);
+                for (i, row) in rows.iter().enumerate().skip(top).take(shown) {
                     let ty = y + 9 + (i - top) as i32 * 8;
-                    let (name, value) = match i {
-                        0 => (t.input, if st.input == Input::Controller { t.controller } else { t.keyboard }),
-                        i if i == rows - 1 => (t.restore, ""),
-                        i => (t.buttons[i - CONTROLS_FIRST], binding_label(st, i - CONTROLS_FIRST)),
+                    let (name, value) = match *row {
+                        ControlsRow::Input => (t.input, if st.input == Input::Controller { t.controller } else { t.keyboard }),
+                        ControlsRow::Restore => (t.restore, ""),
+                        ControlsRow::Touch => (t.touch, t.touch_modes[TouchShow::ALL.iter().position(|&m| m == st.touch).unwrap_or(0)]),
+                        ControlsRow::TouchSize => (t.touch_size, t.touch_sizes[TouchSize::ALL.iter().position(|&m| m == st.touch_size).unwrap_or(1)]),
+                        ControlsRow::Vibration => (t.vibration, if st.vibrate { t.on } else { t.off }),
+                        ControlsRow::Binding(b) => (t.buttons[b], binding_label(st, b)),
                     };
                     c.text(x + 16, ty, name, shade(i));
                     c.text(x + w - 8 - text_width(value), ty, value, 3);
@@ -486,10 +556,10 @@ impl Menu {
                 if top > 0 {
                     c.more(x + 5, y + 10, true);
                 }
-                if top + CONTROLS_SHOWN < rows {
-                    c.more(x + 5, y + 9 + (CONTROLS_SHOWN as i32 - 1) * 8 + 4, false);
+                if top + shown < rows.len() {
+                    c.more(x + 5, y + 9 + (shown as i32 - 1) * 8 + 4, false);
                 }
-                c.footer(x, y + h - 2, w, t.footer_controls);
+                c.footer(x, y + h - 2, w, &self.prompt(t.footer_controls, st));
             }
             Screen::Waiting(b) => {
                 let (x, y, w, h) = (14, 44, 132, 56);
@@ -510,7 +580,11 @@ impl Menu {
                 let rows = [
                     (t.colours, t.palettes[st.palette % 3]),
                     (t.fullscreen, if st.fullscreen { t.yes } else { t.no }),
-                    (t.scale, if st.integer_scale { t.sharp } else { t.fitted }),
+                    (t.scale, match st.scale {
+                        Scale::Sharp => t.sharp,
+                        Scale::Fitted => t.fitted,
+                        Scale::Stretched => t.stretched,
+                    }),
                 ];
                 for (i, (l, v)) in rows.iter().enumerate() {
                     let ty = y + 14 + i as i32 * 13;
@@ -535,7 +609,7 @@ impl Menu {
                         }
                     }
                 }
-                c.footer(x, y + h - 2, w, t.footer_change);
+                c.footer(x, y + h - 2, w, &self.prompt(t.footer_change, st));
             }
             Screen::Sound => {
                 let (x, y, w, h) = (14, 48, 132, 46);
@@ -555,7 +629,7 @@ impl Menu {
                 }
                 c.text(bx + 94, by, &format!("{}", st.volume), 3);
                 c.cursor(x + 9, y + 13, 3);
-                c.footer(x, y + h - 2, w, t.footer_change);
+                c.footer(x, y + h - 2, w, &self.prompt(t.footer_change, st));
             }
             Screen::Language => {
                 // the languages, each written in itself: the rows scroll with the cursor, a
@@ -585,7 +659,7 @@ impl Menu {
                 if top + LANGUAGES_SHOWN < rows {
                     c.more(x + 5, y + 13 + (LANGUAGES_SHOWN as i32 - 1) * 11 + 4, false);
                 }
-                c.footer(x, y + h - 2, w, t.footer_language);
+                c.footer(x, y + h - 2, w, &self.prompt(t.footer_language, st));
             }
             Screen::Cheats => {
                 let (x, y, w, h) = (2, 5, 156, 136);
@@ -612,7 +686,7 @@ impl Menu {
                     Some(&ch) if !self.usable(ch) => if self.in_level { t.no_secret } else { t.only_level },
                     _ => t.footer_language,
                 };
-                c.footer(x, y + h - 2, w, footer);
+                c.footer(x, y + h - 2, w, &self.prompt(footer, st));
             }
             Screen::Summon => {
                 let (x, y, w, h) = (14, 36, 132, 68);
@@ -631,7 +705,7 @@ impl Menu {
                 }
                 let name = t.items[self.sel.min(Item::ALL.len() - 1)];
                 c.text(x + (w - text_width(name)) / 2, y + 38, name, 3);
-                c.footer(x, y + h - 2, w, t.footer_summon);
+                c.footer(x, y + h - 2, w, &self.prompt(t.footer_summon, st));
             }
             Screen::Levels => {
                 let (x, y, w, h) = (6, 8, 148, 130);
@@ -647,10 +721,35 @@ impl Menu {
                         c.cursor(x + 8, ty, 3);
                     }
                 }
-                c.footer(x, y + h - 2, w, t.footer_summon);
+                c.footer(x, y + h - 2, w, &self.prompt(t.footer_summon, st));
             }
         }
     }
+}
+
+impl Menu {
+    /// `footer` naming the buttons of the input that plays (`Prompts`): the keyboard's Enter and
+    /// Esc as written, or the controller's or the on-screen A and B in their place.
+    fn prompt(&self, footer: &str, st: &Settings) -> String {
+        let (ok, back) = match self.devices.prompts() {
+            Prompts::Keyboard => return footer.to_string(),
+            Prompts::Controller => (st.pad[keys::A].label(), st.pad[keys::B].label()),
+            Prompts::Touch => ("A", "B"),
+        };
+        let (enter, esc) = footer_keys(texts(st.lang));
+        let named = |part: &str| match part.split_once(':') {
+            Some((k, word)) if k == enter => format!("{ok}:{word}"),
+            Some((k, word)) if k == esc => format!("{back}:{word}"),
+            _ => part.to_string(),
+        };
+        footer.split(' ').map(named).collect::<Vec<_>>().join(" ")
+    }
+}
+
+/// How a language's footers name Enter and Esc: the keys of its main footer ("ENTER:OK ESC:...").
+fn footer_keys(t: &Texts) -> (&'static str, &'static str) {
+    let mut keys = t.footer_main.split_whitespace().filter_map(|p| p.split_once(':').map(|(k, _)| k));
+    (keys.next().unwrap_or(""), keys.next().unwrap_or(""))
 }
 
 /// Binding `i`'s key or button for the input chosen.
@@ -685,9 +784,43 @@ mod tests {
     }
 
     #[test]
+    fn the_footers_name_the_buttons_of_the_input_that_plays() {
+        for lang in 0..LANGS {
+            let t = texts(lang);
+            let (enter, esc) = footer_keys(t);
+            for footer in [t.footer_main, t.footer_controls, t.footer_change, t.footer_language, t.footer_summon] {
+                for part in footer.split_whitespace() {
+                    let key = part.split_once(':').map(|(k, _)| k);
+                    assert!(matches!(key, Some(k) if k == enter || k == esc || k == "</>"), "{lang}: {footer}");
+                }
+            }
+        }
+        let st = Settings::default();
+        let mut m = Menu::new(GameMode::Playing);
+        assert_eq!(m.prompt(texts(0).footer_main, &st), "ENTER:OK  ESC:RESUME");
+        m.set_devices(Devices { controller: true, ..Devices::default() });
+        assert_eq!(m.prompt(texts(0).footer_main, &st), format!("{}:OK  {}:RESUME", DEFAULT_PAD[keys::A].label(), DEFAULT_PAD[keys::B].label()));
+        m.set_devices(Devices { keyboard: false, controller: false, touch: true, touch_shown: true });
+        assert_eq!(m.prompt(texts(0).footer_summon, &st), "</>:CHOOSE A:OK");
+    }
+
+    #[test]
+    fn controls_opens_on_a_connected_controller() {
+        let mut st = Settings::default();
+        let mut m = Menu::new(GameMode::Playing);
+        m.set_devices(Devices { controller: true, ..Devices::default() });
+        // Original pause, Controls
+        step(&mut m, &mut st, Key::Down);
+        step(&mut m, &mut st, Key::Enter);
+        assert!(m.screen == Screen::Controls);
+        assert_eq!(st.input, Input::Controller);
+    }
+
+    #[test]
     fn change_palette_rebind_and_leave() {
         let mut st = Settings::default();
         let mut m = Menu::new(GameMode::Playing);
+        m.set_devices(Devices { controller: true, ..Devices::default() });
         // Original pause, Controls, Display...
         step(&mut m, &mut st, Key::Down);
         step(&mut m, &mut st, Key::Down);
@@ -695,9 +828,12 @@ mod tests {
         step(&mut m, &mut st, Key::Right);
         assert_eq!(st.palette, 1);
         step(&mut m, &mut st, Key::Escape);
-        // Controls: bind A to Space (below the Input row).
+        // Controls (on the controller's bindings): the keyboard's, then bind A to Space.
         step(&mut m, &mut st, Key::Up);
         step(&mut m, &mut st, Key::Enter);
+        assert_eq!(st.input, Input::Controller);
+        step(&mut m, &mut st, Key::Right);
+        assert_eq!(st.input, Input::Keyboard);
         for _ in 0..5 {
             step(&mut m, &mut st, Key::Down);
         }
@@ -706,6 +842,35 @@ mod tests {
         assert_eq!(st.keys[keys::A], Key::Space);
         step(&mut m, &mut st, Key::Escape);
         assert!(matches!(step(&mut m, &mut st, Key::Escape), Action::Close));
+    }
+
+    #[test]
+    fn controls_shows_only_the_inputs_there_are() {
+        let mut m = Menu::new(GameMode::Map);
+        m.set_devices(Devices { keyboard: false, controller: false, touch: true, touch_shown: true });
+        assert_eq!(m.controls_rows(), [ControlsRow::Touch, ControlsRow::TouchSize, ControlsRow::Vibration]);
+        m.set_devices(Devices { keyboard: false, controller: true, touch: true, touch_shown: true });
+        let rows = m.controls_rows();
+        assert_eq!((rows[0], rows.len()), (ControlsRow::Binding(0), keys::KEYS + 4), "the controller's bindings, no choice of input");
+        m.set_devices(Devices::default());
+        assert!(!m.controls_rows().contains(&ControlsRow::Touch), "no touch rows on a computer");
+        // the controller's bindings shown on a phone with only a controller, whatever was chosen
+        let mut st = Settings::default();
+        m.set_devices(Devices { keyboard: false, controller: true, touch: true, touch_shown: true });
+        step(&mut m, &mut st, Key::Down);
+        assert_eq!(st.input, Input::Controller);
+    }
+
+    #[test]
+    fn a_phone_turns_its_controls_off_and_on_in_controls() {
+        let mut st = Settings::default();
+        let mut m = Menu::new(GameMode::Map);
+        m.set_devices(Devices { keyboard: false, controller: false, touch: true, touch_shown: true });
+        m.go(Screen::Controls, 0);
+        step(&mut m, &mut st, Key::Right);
+        assert_eq!(st.touch, TouchShow::Always);
+        step(&mut m, &mut st, Key::Right);
+        assert_eq!(st.touch, TouchShow::Never);
     }
 
     fn cheats_menu(mode: GameMode) -> Menu {
@@ -717,6 +882,14 @@ mod tests {
         assert!(!Menu::new(GameMode::Playing).items.contains(&IT_CHEATS));
         assert_eq!(cheats_menu(GameMode::Playing).items[1], IT_CHEATS);
         assert_eq!(cheats_menu(GameMode::Map).items[0], IT_CHEATS);
+    }
+
+    #[test]
+    fn no_quit_where_the_program_is_not_quit() {
+        assert_eq!(Menu::new(GameMode::Map).items.last(), Some(&IT_QUIT));
+        let m = Menu::new(GameMode::Map).without_quit();
+        assert!(!m.items.contains(&IT_QUIT));
+        assert_eq!(m.items.last(), Some(&IT_FILES));
     }
 
     #[test]

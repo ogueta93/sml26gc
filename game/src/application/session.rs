@@ -3,6 +3,8 @@
 //! Each call to `frame` is one frame of the window.
 use super::preferences::Preferences;
 use super::zones::ZoneSwap;
+use crate::domain::devices::{Devices, Prompts};
+use crate::domain::touch::TouchShow;
 use crate::domain::cheats::{draw_info, draw_note, draw_objects, Cheat, Cheats};
 use crate::domain::keys::{self, Key};
 use crate::domain::menu::{Action, CheatMenu, Menu};
@@ -260,7 +262,7 @@ pub struct GameSession {
     rewind: Rewind,
     /// Times the session swapped the program in memory itself (loading a saved game).
     loads: u32,
-    note: Option<(&'static str, f32)>,
+    note: Option<(String, f32)>,
     /// A test game's lives and coins, until given.
     boost: Option<(u8, u16)>,
     /// A test game started in a level: it is entered again after a lost life.
@@ -269,9 +271,19 @@ pub struct GameSession {
     power: Option<u8>,
     /// A test game from the editor (a level or the copy's map).
     from_editor: bool,
+    /// The menu offers Quit (not in the browser, where the page is closed instead).
+    can_quit: bool,
+    /// The inputs there are now, for the menu's Controls.
+    devices: Devices,
 }
 
 impl GameSession {
+    /// Where the program cannot be quit from its menu: no Quit row.
+    pub fn without_quit(mut self) -> GameSession {
+        self.can_quit = false;
+        self
+    }
+
     pub fn new(mut gb: Gb, parts: SessionParts) -> GameSession {
         // the zone editor's Here: a new game begins there (in the console's memory only)
         if let Some(s) = parts.start_point.filter(|_| parts.test.is_some() && parts.start_level.is_none()) {
@@ -320,7 +332,21 @@ impl GameSession {
             power: parts.test.map(|t| t.power),
             from_editor: parts.test.is_some(),
             retry,
+            can_quit: true,
+            devices: Devices::default(),
         }
+    }
+
+    /// The inputs the device has now (the adapters detect them each frame).
+    pub fn set_devices(&mut self, devices: Devices) {
+        self.devices = devices;
+    }
+
+    /// The on-screen controls back to Auto, after they were turned off where nothing else plays.
+    pub fn show_touch_controls(&mut self) {
+        let before = self.prefs.settings.clone();
+        self.prefs.settings.touch = TouchShow::Auto;
+        self.prefs.changed_from(&before);
     }
 
     /// What the program in memory depends on: zone swaps, the new level in place, invincible,
@@ -337,7 +363,7 @@ impl GameSession {
         let b = Bindings::new(input, pad, &st);
         if b.pressed(keys::SAVE_STATE) {
             self.saved = Some(Box::new(Saved { gb: self.gb.clone(), extra: self.extra.clone(), zones: self.zones.clone(), frozen: self.frozen }));
-            self.note = Some((t.saved, NOTE_SECONDS));
+            self.note = Some((self.naming_keys(t.saved), NOTE_SECONDS));
         }
         if b.pressed(keys::LOAD_STATE) {
             match self.saved.as_deref().cloned() {
@@ -349,10 +375,25 @@ impl GameSession {
                     cheat_rules::set_invincible(self.gb.cart_mut().rom_mut(), state.invincible);
                     self.loads += 1;
                     self.acc = 0.0;
-                    self.note = Some((t.loaded, NOTE_SECONDS));
+                    self.note = Some((t.loaded.to_string(), NOTE_SECONDS));
                 }
-                None => self.note = Some((t.nothing_saved, NOTE_SECONDS)),
+                None => self.note = Some((self.naming_keys(t.nothing_saved), NOTE_SECONDS)),
             }
+        }
+    }
+
+    /// A save state note with its keys (the texts say F6 and F7) as the input that plays names
+    /// them; the on-screen controls have their own pictures, and the keys are left out.
+    fn naming_keys(&self, text: &str) -> String {
+        let st = &self.prefs.settings;
+        let label = |i: usize| match self.devices.prompts() {
+            Prompts::Controller => Some(st.pad[i].label()),
+            Prompts::Keyboard => Some(st.keys[i].label(st.lang)),
+            Prompts::Touch => None,
+        };
+        match (label(keys::SAVE_STATE), label(keys::LOAD_STATE)) {
+            (Some(save), Some(load)) => text.replace("F6", save).replace("F7", load),
+            _ => text.split(" (").next().unwrap_or(text).to_string(),
         }
     }
 
@@ -361,13 +402,21 @@ impl GameSession {
         self.cheats.is_some() && Bindings::new(input, pad, &self.prefs.settings).held(keys::REWIND)
     }
 
-    /// The start-up tag's lines: what opens the menu (Start in a level, else the menu
-    /// binding) and the cheats mode's keys, as a connected controller or the keyboard name them.
-    fn hint_lines(&self, in_level: bool, input: &dyn Keyboard, pad: &dyn Gamepad) -> Vec<String> {
+    /// The start-up tag's lines: what opens the menu (Start in a level, else the menu binding)
+    /// and the cheats mode's keys, named for the input that plays (`Prompts`). The on-screen
+    /// controls show their own: only Start is named.
+    fn hint_lines(&self, in_level: bool) -> Vec<String> {
         let st = &self.prefs.settings;
         let t = texts(st.lang);
-        let b = Bindings::new(input, pad, st);
-        let key = |i: usize| b.label(i);
+        let prompts = self.devices.prompts();
+        let key = |i: usize| match prompts {
+            Prompts::Controller => st.pad[i].label(),
+            Prompts::Keyboard => st.keys[i].label(st.lang),
+            Prompts::Touch => "START",
+        };
+        if prompts == Prompts::Touch {
+            return if in_level { vec![format!("{}: {}", key(keys::START), t.hint_menu)] } else { Vec::new() };
+        }
         let menu = if in_level { key(keys::START) } else { key(keys::MENU) };
         let mut lines = vec![format!("{menu}: {}", t.hint_menu)];
         if self.cheats.is_some() {
@@ -376,6 +425,23 @@ impl GameSession {
             lines.push(format!("{}: {}", key(keys::REWIND), t.hint_rewind));
         }
         lines
+    }
+
+    /// The port's actions the on-screen controls offer now (`keys` indexes): fast forward always;
+    /// rewind and the save states in the cheats mode; restarting a level in a level of a test game
+    /// or with the cheats mode. None while the menu is open.
+    pub fn touch_extras(&mut self) -> Vec<usize> {
+        if self.menu.is_some() || self.checking {
+            return Vec::new();
+        }
+        let mut extras = vec![keys::FAST_FORWARD];
+        if self.cheats.is_some() {
+            extras.extend([keys::REWIND, keys::SAVE_STATE, keys::LOAD_STATE]);
+        }
+        if (self.cheats.is_some() || self.retry.is_some()) && self.gb.mode() == GameMode::Playing {
+            extras.push(keys::RESTART);
+        }
+        extras
     }
 
     /// Leave for the map and enter `level` (a new level: its base level with it in place),
@@ -508,10 +574,14 @@ impl GameSession {
                     if self.from_editor {
                         menu = menu.without_file_select();
                     }
+                    if !self.can_quit {
+                        menu = menu.without_quit();
+                    }
                     self.menu = Some(menu);
                 }
             }
         } else if let Some(m) = self.menu.as_mut() {
+            m.set_devices(self.devices);
             let before = self.prefs.settings.clone();
             let uses_pad = pad.connected();
             let menu_input = MenuInput::read(input, uses_pad.then_some(pad), &self.prefs.settings);
@@ -566,8 +636,8 @@ impl GameSession {
         if self.cheats.is_some_and(|c| c.info) {
             draw_info(&mut self.screen, &cheat_rules::info(&mut self.gb));
         }
-        if let Some((text, left)) = self.note {
-            draw_note(&mut self.screen, text);
+        if let Some((text, left)) = self.note.take() {
+            draw_note(&mut self.screen, &text);
             self.note = (left > dt).then_some((text, left - dt));
         }
         if let Some(m) = &self.menu {
@@ -575,8 +645,10 @@ impl GameSession {
         } else if self.hint_time > 0.0 {
             self.hint_time -= dt;
             let playing = self.gb.mode() == GameMode::Playing;
-            let lines = self.hint_lines(playing, input, pad);
-            draw_hint(&mut self.screen, &lines);
+            let lines = self.hint_lines(playing);
+            if !lines.is_empty() {
+                draw_hint(&mut self.screen, &lines);
+            }
         }
         Flow::Continue
     }
@@ -864,7 +936,7 @@ mod tests {
         let mut keys = FakeKeys::default();
         frames(&mut s, &mut keys, &[], 30);
         frames(&mut s, &mut keys, &[Key::F7], 1);
-        assert_eq!(s.note.map(|n| n.0), Some(texts(0).nothing_saved));
+        assert_eq!(s.note.as_ref().map(|n| n.0.as_str()), Some(texts(0).nothing_saved));
         frames(&mut s, &mut keys, &[Key::F6], 1);
         let (lives, x) = (s.gb.read(cart_model::ram_map::LIVES), s.gb.read(cart_model::ram_map::PLAYER_X));
         s.gb.write(0xA224, 0x80);

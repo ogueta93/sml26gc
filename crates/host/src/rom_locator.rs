@@ -12,7 +12,7 @@ fn is_rom(p: &Path) -> bool {
 }
 
 fn first_rom_in(dir: &Path) -> Option<PathBuf> {
-    let mut v: Vec<PathBuf> = std::fs::read_dir(dir).ok()?.flatten().map(|e| e.path()).filter(|p| is_rom(p)).collect();
+    let mut v: Vec<PathBuf> = crate::storage::read_dir(dir).ok()?.into_iter().filter(|p| is_rom(p)).collect();
     v.sort();
     v.into_iter().next()
 }
@@ -22,7 +22,7 @@ fn first_rom_in(dir: &Path) -> Option<PathBuf> {
 /// folders), then the person's Games folder.
 pub fn find_rom(arg: Option<PathBuf>) -> Option<PathBuf> {
     if let Some(p) = arg {
-        if p.is_dir() {
+        if crate::storage::is_dir(&p) {
             return first_rom_in(&p);
         }
         return Some(p);
@@ -47,13 +47,13 @@ pub fn find_rom(arg: Option<PathBuf>) -> Option<PathBuf> {
     if let Some(r) = first_rom_in(&games.join("Super Mario Land 2 - 6 Golden Coins (USA, Europe) (Rev 1)")) {
         return Some(r);
     }
-    for e in std::fs::read_dir(&games).ok()?.flatten() {
-        if e.path().is_dir() {
-            if let Some(r) = first_rom_in(&e.path()) {
+    for p in crate::storage::read_dir(&games).ok()? {
+        if crate::storage::is_dir(&p) {
+            if let Some(r) = first_rom_in(&p) {
                 return Some(r);
             }
-        } else if is_rom(&e.path()) {
-            return Some(e.path());
+        } else if is_rom(&p) {
+            return Some(p);
         }
     }
     None
@@ -63,7 +63,7 @@ pub fn find_rom(arg: Option<PathBuf>) -> Option<PathBuf> {
 /// the path given doesn't exist.
 pub fn require_rom(arg: Option<PathBuf>) -> Result<PathBuf, String> {
     match find_rom(arg) {
-        Some(p) if p.is_file() => Ok(p),
+        Some(p) if crate::storage::is_file(&p) => Ok(p),
         Some(p) => Err(format!("The cartridge file was not found:\n{}", p.display())),
         None => Err(NO_CARTRIDGE.to_string()),
     }

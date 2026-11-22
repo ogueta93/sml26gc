@@ -5,7 +5,7 @@
 //!                         `dist/TARGET/<id>/` and the target's packages in `dist/`
 //!   check-portable        checks the platform-independent crates for Linux
 //!
-//! A package holds the two executables, the read-me (`packaging/<platform>/`) and the cartridge
+//! A package holds the two executables (the web package: the game's page and program), the read-me (`packaging/<platform>/`) and the cartridge
 //! notice (`packaging/`), the licence (`LICENSE`), the legal notice (`LEGAL.md`) and the
 //! changelog, the manuals (`docs/GAME.md`, `docs/EDITOR.md`) and the other licences, and nothing
 //! else: it is built into its own folder under `target/`, apart from the developer's
@@ -14,6 +14,7 @@ mod icons;
 mod licences;
 mod linux;
 mod macos;
+mod web;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -22,7 +23,7 @@ use std::process::{Command, ExitCode};
 struct Target {
     name: &'static str,
     triple: &'static str,
-    /// `std::env::consts::OS` of the computer that builds it.
+    /// `std::env::consts::OS` of the computer that builds it (`ANY_HOST`: any).
     host_os: &'static str,
     suffix: &'static str,
     imports: Imports,
@@ -43,6 +44,8 @@ enum Imports {
     /// Only the system's, every architecture of `Build::Universal`, and no minimum macOS newer
     /// than `macos`, which they are built for.
     MacOs { macos: (u32, u32) },
+    /// A WebAssembly program, which imports only from its page.
+    Page,
 }
 
 enum Build {
@@ -59,6 +62,8 @@ enum Layout {
     Flat,
     /// Each in its macOS app bundle.
     AppBundles,
+    /// The game alone, as a web page (`web::assemble`).
+    Web,
 }
 
 enum Output {
@@ -95,7 +100,10 @@ const TARGETS: &[Target] = &[
         layout: Layout::AppBundles,
         outputs: &[Output::Ditto],
     },
+    Target { name: "web", triple: web::TRIPLE, host_os: ANY_HOST, suffix: ".wasm", imports: Imports::Page, crlf: false, readme: "web/README.txt", build: Build::Here, layout: Layout::Web, outputs: &[Output::Zip] },
 ];
+
+const ANY_HOST: &str = "any";
 
 /// The programs shipped: their crates (the binaries' names come from the manifests).
 const PROGRAMS: [&str; 2] = ["game", "editor"];
@@ -174,7 +182,7 @@ impl Fill {
             .replace("{product}", env!("PRODUCT_NAME"))
             .replace("{id}", env!("PRODUCT_ID"))
             .replace("{game}", &self.programs[0])
-            .replace("{editor}", &self.programs[1])
+            .replace("{editor}", self.programs.get(1).map_or("", String::as_str))
             .replace("{source}", env!("PRODUCT_SOURCE"))
             .replace("{maintainer}", env!("PRODUCT_MAINTAINER"))
             .replace("{glibc}", self.glibc.as_deref().unwrap_or("?"))
@@ -185,16 +193,22 @@ impl Fill {
 
 fn package(t: &Target) -> Result<(), String> {
     let id = env!("PRODUCT_ID");
-    if std::env::consts::OS != t.host_os {
+    if t.host_os != ANY_HOST && std::env::consts::OS != t.host_os {
         return Err(format!("the {} package is built on {} (this computer runs {})", t.name, t.host_os, std::env::consts::OS));
     }
+    let web = matches!(t.layout, Layout::Web);
+    if web {
+        web::check_target()?;
+    }
+    let shipped: &[&str] = if web { &PROGRAMS[..1] } else { &PROGRAMS };
+    let manuals: &[&str] = if web { &MANUALS[..1] } else { &MANUALS };
     let meta = metadata(t.triple)?;
     let packages = meta["packages"].as_array().ok_or("cargo metadata: no packages")?;
     let game = packages.iter().find(|p| p["name"] == PROGRAMS[0]).ok_or("no game package")?;
     let version = game["version"].as_str().ok_or("no game version")?.to_string();
     let target_dir = PathBuf::from(meta["target_directory"].as_str().ok_or("cargo metadata: no target directory")?);
     let mut bins = Vec::new();
-    for p in PROGRAMS {
+    for &p in shipped {
         let bin = packages.iter().find(|q| q["name"] == p).and_then(|q| q["targets"].as_array()?.iter().find(|t| t["kind"][0] == "bin")?["name"].as_str()).ok_or(format!("no binary in {p}"))?;
         bins.push(bin.to_string());
     }
@@ -202,7 +216,7 @@ fn package(t: &Target) -> Result<(), String> {
         Build::Here => {
             let mut build = cargo();
             build.args(["build", "--profile", "dist", "--target", t.triple]);
-            for p in PROGRAMS {
+            for p in shipped {
                 build.args(["-p", p]);
             }
             run(build)?;
@@ -210,11 +224,11 @@ fn package(t: &Target) -> Result<(), String> {
         }
         Build::Container => {
             let rust = game["rust_version"].as_str().ok_or("no rust-version in the workspace")?;
-            linux::build_in_container(&root(), rust, t.triple, &PROGRAMS)?
+            linux::build_in_container(&root(), rust, t.triple, shipped)?
         }
         Build::Universal(triples) => {
             let Imports::MacOs { macos } = t.imports else { return Err(format!("{}: a universal build needs its minimum macOS", t.name)) };
-            macos::build_universal(&target_dir, triples, &PROGRAMS, &bins, macos)?
+            macos::build_universal(&target_dir, triples, shipped, &bins, macos)?
         }
     };
 
@@ -238,6 +252,7 @@ fn package(t: &Target) -> Result<(), String> {
                 let Build::Universal(triples) = t.build else { return Err(format!("{}: the macOS check needs a universal build", t.name)) };
                 macos = macos.max(Some(macos::check(&from, triples, limit)?));
             }
+            Imports::Page => {}
         }
         std::fs::copy(&from, folder.join(&file)).map_err(|e| format!("{}: {e}", from.display()))?;
         programs.push(file);
@@ -252,20 +267,23 @@ fn package(t: &Target) -> Result<(), String> {
     if let (Layout::AppBundles, Imports::MacOs { macos: limit }) = (&t.layout, &t.imports) {
         macos::bundles(&root(), &folder, &fill, *limit)?;
     }
+    if web {
+        web::assemble(&root(), &folder, &fill.programs[0], |text| fill.text(text))?;
+    }
 
     let packaging = root().join("packaging");
     for (from, to) in [(packaging.join(t.readme), "README.txt"), (packaging.join("NO-CARTRIDGE.txt"), "NO-CARTRIDGE.txt"), (root().join("LICENSE"), "LICENSE.txt"), (root().join("LEGAL.md"), "LEGAL.md"), (root().join("CHANGELOG.md"), "CHANGELOG.md")] {
         let text = std::fs::read_to_string(&from).map_err(|e| format!("{}: {e}", from.display()))?;
         std::fs::write(folder.join(to), fill.text(&text)).map_err(|e| format!("{to}: {e}"))?;
     }
-    for f in MANUALS {
+    for f in manuals {
         let text = std::fs::read_to_string(root().join("docs").join(f)).map_err(|e| format!("docs/{f}: {e}"))?;
         std::fs::write(folder.join("manuals").join(f), fill.text(&text)).map_err(|e| format!("manuals/{f}: {e}"))?;
     }
     for f in FONT_LICENCES {
         std::fs::copy(root().join("fonts").join(f), folder.join("licenses").join(f)).map_err(|e| format!("fonts/{f}: {e}"))?;
     }
-    let crates = licences::third_party(&meta, &PROGRAMS)?;
+    let crates = licences::third_party(&meta, shipped)?;
     std::fs::write(folder.join("licenses").join("THIRD-PARTY.txt"), fill.text(&crates)).map_err(|e| format!("THIRD-PARTY.txt: {e}"))?;
     println!("package: {}", folder.display());
 

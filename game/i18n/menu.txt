@@ -366,6 +366,114 @@ ru: ПО УМОЛЧАНИЮ
 zh: 恢复默认
 ko: 기본값으로
 
+en: TOUCH CONTROLS
+es: CONTROL TACTIL
+ja: タッチボタン
+pt: CONTROLE TOQUE
+fr: ECRAN TACTILE
+de: TOUCHSTEUERUNG
+it: COMANDI TOUCH
+id: KONTROL SENTUH
+ru: КНОПКИ ЭКРАНА
+zh: 触屏操作
+ko: 터치 조작
+
+en: AUTO
+es: AUTO
+ja: ジドウ
+pt: AUTO
+fr: AUTO
+de: AUTO
+it: AUTO
+id: AUTO
+ru: АВТО
+zh: 自动
+ko: 자동
+
+en: ALWAYS
+es: SIEMPRE
+ja: イツモ
+pt: SEMPRE
+fr: OUI
+de: IMMER
+it: SEMPRE
+id: SELALU
+ru: ВСЕГДА
+zh: 总是
+ko: 항상
+
+en: NEVER
+es: NUNCA
+ja: ナシ
+pt: NUNCA
+fr: NON
+de: NIE
+it: MAI
+id: TIDAK
+ru: НИКОГДА
+zh: 从不
+ko: 안 함
+
+en: TOUCH SIZE
+es: TAMAÑO TACTIL
+ja: タッチサイズ
+pt: TAMANHO TOQUE
+fr: TAILLE TACTILE
+de: TOUCHGROESSE
+it: MISURA TOUCH
+id: UKURAN SENTUH
+ru: РАЗМЕР КНОПОК
+zh: 按键大小
+ko: 버튼 크기
+
+en: SMALL
+es: PEQUEÑO
+ja: ショウ
+pt: PEQUENO
+fr: PETIT
+de: KLEIN
+it: PICCOLO
+id: KECIL
+ru: МАЛЫЙ
+zh: 小
+ko: 작게
+
+en: MEDIUM
+es: MEDIANO
+ja: チュウ
+pt: MEDIO
+fr: MOYEN
+de: MITTEL
+it: MEDIO
+id: SEDANG
+ru: СРЕДНИЙ
+zh: 中
+ko: 보통
+
+en: LARGE
+es: GRANDE
+ja: ダイ
+pt: GRANDE
+fr: GRAND
+de: GROSS
+it: GRANDE
+id: BESAR
+ru: БОЛЬШОЙ
+zh: 大
+ko: 크게
+
+en: VIBRATION
+es: VIBRACION
+ja: シンドウ
+pt: VIBRACAO
+fr: VIBRATION
+de: VIBRATION
+it: VIBRAZIONE
+id: GETARAN
+ru: ВИБРАЦИЯ
+zh: 振动
+ko: 진동
+
 en: ENTER:CHANGE ESC:BACK
 es: INTRO:CAMBIAR ESC:VOLVER
 ja: ENTER:ヘンコウ ESC:モドル
@@ -581,6 +689,18 @@ id: PAS
 ru: ВПИСАТЬ
 zh: 适应
 ko: 맞춤
+
+en: STRETCHED
+es: ESTIRADA
+ja: ノバス
+pt: ESTICADA
+fr: ETIREE
+de: GEDEHNT
+it: ESTESA
+id: REGANG
+ru: РАСТЯНУТЬ
+zh: 拉伸
+ko: 늘이기
 
 en: </>:CHANGE ESC:BACK
 es: </>:CAMBIAR ESC:VOLVER

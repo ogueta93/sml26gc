@@ -19,13 +19,18 @@ gb-core.workspace = true
 cart-model.workspace = true
 i18n.workspace = true
 fonts.workspace = true
-gilrs.workspace = true
 host.workspace = true
 macroquad.workspace = true
-cpal.workspace = true
 
 [dev-dependencies]
 project-model.workspace = true
+
+# Off the web: sound, controllers and the fonts in the program (the page gives the web build its
+# own, see `host::web`).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+cpal.workspace = true
+gilrs.workspace = true
+fonts = { workspace = true, features = ["bundled"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys.workspace = true

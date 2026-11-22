@@ -4,11 +4,11 @@ use crate::paths::settings_path;
 
 /// The file's text, if there is one.
 pub fn read() -> Option<String> {
-    std::fs::read_to_string(settings_path()).ok()
+    crate::storage::read_to_string(settings_path()).ok()
 }
 
 pub fn write(text: &str) -> std::io::Result<()> {
-    std::fs::write(settings_path(), text)
+    crate::storage::write(settings_path(), text)
 }
 
 /// The value of `key` in `key=value` text (spaces around both are ignored).

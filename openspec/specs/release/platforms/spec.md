@@ -7,11 +7,11 @@ code keeps what depends on the system apart so another platform can be added.
 ## Requirements
 
 ### Requirement: Supported platforms
-The supported platforms SHALL be Windows 11 on x86-64 (`windows-x64`), Linux on x86-64 (`linux-x64`), for desktop distributions with glibc 2.31 or newer (Debian 11, Ubuntu 20.04 and later) and an X11 or Wayland (through Xwayland) desktop, and macOS 11 Big Sur or later on Apple Silicon and Intel (`macos-universal`). Each platform's package SHALL be built on that platform; the Linux one inside a Debian 11 container (see packaging).
+The supported platforms SHALL be Windows 11 on x86-64 (`windows-x64`), Linux on x86-64 (`linux-x64`), for desktop distributions with glibc 2.31 or newer (Debian 11, Ubuntu 20.04 and later) and an X11 or Wayland (through Xwayland) desktop, macOS 11 Big Sur or later on Apple Silicon and Intel (`macos-universal`), and web browsers (`web`, see `release/web`). Each desktop platform's package SHALL be built on that platform; the Linux one inside a Debian 11 container (see packaging). The web package SHALL build on any of the three.
 
 #### Scenario: The targets the package command knows
 - **WHEN** the package command lists its targets
-- **THEN** it lists `windows-x64`, `linux-x64` and `macos-universal`
+- **THEN** it lists `windows-x64`, `linux-x64`, `macos-universal` and `web`
 
 #### Scenario: An older distribution
 - **WHEN** the Linux package is unpacked on Ubuntu 20.04 or Debian 11 and `./sml26gc` is run
@@ -24,6 +24,10 @@ The supported platforms SHALL be Windows 11 on x86-64 (`windows-x64`), Linux on 
 #### Scenario: An older macOS
 - **WHEN** the macOS package built on the newest macOS is opened on macOS 11 or 12
 - **THEN** the game starts, with no error about a missing system function
+
+#### Scenario: The web package built on Windows
+- **WHEN** the web package is built on Windows and on Linux from the same commit
+- **THEN** both play the same in a browser
 
 ### Requirement: Runs without installing anything
 On a supported platform, the unpacked executables SHALL start on a freshly installed system with no runtime, redistributable or library installed beforehand: the C runtime is part of each executable on Windows, on Linux they need only libraries a desktop distribution installs by default (glibc, ALSA, udev, OpenGL and X11), and on macOS only the system's own libraries and frameworks. The fonts and translation catalogues are inside them. The only file the person adds is their cartridge.
@@ -63,11 +67,15 @@ On Windows, opening the editor or the game SHALL show only its own window, with 
 - **THEN** its messages appear in that terminal
 
 ### Requirement: The system stays behind ports
-Code that depends on the operating system (window menus, file dialogs, the system language, the data folder, starting the other program, the shortcut key, the executables' names and resources) SHALL be in adapters behind ports, selected per platform at build time, each with its Windows, Linux and macOS implementations where they differ and a fallback for other systems that builds and keeps the program usable. The domain and application code SHALL build for any target.
+Code that depends on the operating system or the browser (window menus, file dialogs, the system language, the data folder and its files, the clock, sound, controllers, starting the other program, the shortcut key, the executables' names and resources) SHALL be in adapters behind ports, selected per platform at build time, each with its Windows, Linux, macOS and web implementations where they differ and a fallback for other systems that builds and keeps the program usable. The domain and application code SHALL build for any target, WebAssembly included.
 
 #### Scenario: Adding a platform
 - **WHEN** macOS support is added
 - **THEN** the work is new adapters, a new package target and their tests, and no domain or application module changes
+
+#### Scenario: Adding the web
+- **WHEN** the web game is added
+- **THEN** the game's rules, its menu and its session are the same code as on the desktop, and only adapters, the composition root's choice of them and the package target are new
 
 ### Requirement: Built with the current Rust
 The workspace SHALL use the current Rust edition (2024) with its dependency resolver (3), and declare as `rust-version` the stable toolchain it is built and tested with (1.100). Every crate SHALL take the edition from the workspace. The whole workspace SHALL build without warnings, and the tests, the regression fingerprint included, SHALL pass unchanged: the edition changes the code's language rules, never what the programs do.

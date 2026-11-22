@@ -1,7 +1,7 @@
 # Development
 
-How to set up a computer to work on the project, build and check it, make the Windows, Linux and
-macOS packages, and how the emulator and the editor were made. The rules for changing the code are in
+How to set up a computer to work on the project, build and check it, make the Windows, Linux,
+macOS and web packages, and how the emulator and the editor were made. The rules for changing the code are in
 [`AGENTS.md`](../AGENTS.md); the code's layout in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## What you need
@@ -63,6 +63,9 @@ executables that link one.
 Every other dependency (macroquad, cpal, gilrs, png...) is a Rust crate Cargo downloads by itself.
 No Python, CMake or other build system is needed.
 
+For the web game, on any of them: the WebAssembly target (`rustup target add
+wasm32-unknown-unknown`), and to try it, any static web server (`python3 -m http.server`).
+
 ## Build and run
 
     cargo build --release
@@ -97,7 +100,7 @@ them out first.
 | `sml26gc.exe --self-test out.json` | Checks the game's rules read from the cartridge (`MECHANICS.md`) against the running game |
 | `sml26gc.exe --dump DIR --script ... --frames N --every N` | Screens of a scripted run |
 | `sml26gc.exe --screenshot FILE [--start-screen]`, `sml26gc_editor.exe --screenshot FILE [--project NAME --level N]` | One picture of the window, with default settings (unattended checks) |
-| `cargo xtask targets`, `cargo xtask package TARGET`, `cargo xtask check-portable` | The release tool, below ("Building for Windows", "Building for Linux", "Building for macOS") |
+| `cargo xtask targets`, `cargo xtask package TARGET`, `cargo xtask check-portable` | The release tool, below ("Building for Windows", "Building for Linux", "Building for macOS", "Building for the web") |
 
 Never run `cargo fmt`: the code is formatted by hand (`AGENTS.md`).
 
@@ -266,6 +269,37 @@ Build errors and their cause:
 
 A package is published only as part of a release (below). What a Mac needs to run it is in
 [`packaging/macos/README.txt`](../packaging/macos/README.txt).
+
+## Building for the web
+
+The game as a web page, built on any of the three systems:
+
+    cargo xtask package web
+
+1. Builds the game alone with the `dist` profile for `wasm32-unknown-unknown`, without the
+   bundled fonts (`fonts`'s `bundled` feature off): `target/wasm32-unknown-unknown/dist/sml26gc.wasm`.
+2. Writes `dist/web/sml26gc/`: the `.wasm`; from `packaging/web/` the page (`index.html`),
+   miniquad's loader (`gl.js`), the page's script (`sml26gc.js`) and `manifest.webmanifest`; the
+   CJK fonts in `fonts/` (downloaded by the page when their language is chosen); the icons the
+   manifest and `index.html` name, made from `assets/icons/sml26gc.png`; and the texts and
+   licences as for the other packages, with only the game's manual.
+3. Zips that folder to `dist/sml26gc-<version>-web.zip`.
+
+To try it, serve the folder and open it in a browser (it does not run from `file://`):
+
+    cd dist/web/sml26gc && python3 -m http.server
+
+then `http://localhost:8000/`; from a phone on the same network, the computer's address and
+port 8000 (fullscreen and the storage need HTTPS or localhost, so a phone may need the package on
+an HTTPS host). The browser's developer tools show the page's messages and its storage
+(IndexedDB, `sml26gc`). The program's half of the page is `crates/host/src/web.rs` and
+`game/src/adapters/platform.rs`; `gl.js` comes from the `miniquad` crate of `Cargo.lock` and is
+replaced when it is updated.
+
+| Error | Cause and fix |
+|---|---|
+| `the wasm32-unknown-unknown target is not installed` | `rustup target add wasm32-unknown-unknown` |
+| The page stays black, the console says an import is missing | `gl.js` and `sml26gc.js` do not match the program: copy `gl.js` from the `miniquad` crate in use |
 
 ## Workflow and releases
 

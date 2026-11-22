@@ -26,7 +26,7 @@ gb-core = { path = "crates/gb-core" }
 cart-model = { path = "crates/cart-model" }
 host = { path = "crates/host" }
 i18n = { path = "crates/i18n" }
-fonts = { path = "crates/fonts" }
+fonts = { path = "crates/fonts", default-features = false }
 app-resources = { path = "crates/app-resources" }
 project-model = { path = "crates/project-model" }
 macroquad = "0.4"
