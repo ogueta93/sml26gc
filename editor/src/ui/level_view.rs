@@ -34,7 +34,7 @@ impl Editor {
     pub(super) fn update_level(&mut self) {
         self.look_now();
         let m: Vec2 = mouse_position().into();
-        let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
+        let ctrl = super::shortcuts::command_down();
         let (space, view, max) = self.navigate(m, ctrl, LEVEL_SIZE);
         // Click or drag on the overview: centre the view there.
         let ov = self.overview_rect();

@@ -1,4 +1,5 @@
-//! The keyboard through macroquad.
+//! The keyboard through macroquad. On macOS, which keeps F11 for itself, Cmd+Ctrl+F (the
+//! system's full screen keys) is also F11.
 use crate::domain::keys::Key;
 use crate::ports::Keyboard;
 use macroquad::input::{get_last_key_pressed, is_key_down, is_key_pressed, KeyCode};
@@ -27,7 +28,7 @@ same_names! {
 
 impl Keyboard for MacroquadKeyboard {
     fn pressed(&self, k: Key) -> bool {
-        is_key_pressed(code(k))
+        is_key_pressed(code(k)) || (k == Key::F11 && full_screen_keys())
     }
     fn held(&self, k: Key) -> bool {
         is_key_down(code(k))
@@ -35,4 +36,15 @@ impl Keyboard for MacroquadKeyboard {
     fn last_pressed(&self) -> Option<Key> {
         get_last_key_pressed().and_then(key)
     }
+}
+
+#[cfg(target_os = "macos")]
+fn full_screen_keys() -> bool {
+    let held = |a, b| is_key_down(a) || is_key_down(b);
+    held(KeyCode::LeftSuper, KeyCode::RightSuper) && held(KeyCode::LeftControl, KeyCode::RightControl) && is_key_pressed(KeyCode::F)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn full_screen_keys() -> bool {
+    false
 }

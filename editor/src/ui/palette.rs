@@ -150,7 +150,8 @@ impl Editor {
 
     /// The palette's zoom keys and - + buttons; returns where the palette starts.
     fn zoom_row(&mut self, y: f32) -> f32 {
-        let keys = format!("Zoom  Ctrl {}/{}", shortcuts::keys(Action::ZoomOut).trim_start_matches("Ctrl+"), shortcuts::keys(Action::ZoomIn).trim_start_matches("Ctrl+"));
+        let key = host::shortcut_key::SHORTCUT_KEY.label();
+        let keys = format!("Zoom  {key} {}/{}", shortcuts::keys(Action::ZoomOut).trim_start_matches(key).trim_start_matches('+'), shortcuts::keys(Action::ZoomIn).trim_start_matches(key).trim_start_matches('+'));
         put_text(&keys, 10.0, y + 15.0, 15.0, INFO);
         let right = self.panel - 10.0;
         if button(Rect::new(right - 54.0, y, 26.0, 20.0), "-", false, 18.0) {

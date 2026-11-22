@@ -100,7 +100,7 @@ The menu SHALL be there in the editor and on the project screen.
 - **THEN** Automatic is ticked and the editor is in Spanish
 
 ### Requirement: Menu bar inside the window on Linux
-On Linux, where the editor's window has no native menu bar, the editor SHALL draw its menu bar along the top of its own window, above the panels, with the same menus, entries, shortcuts shown, greyed-out and ticked entries as on Windows, in the editor's language. The panels SHALL start below it, and nothing the editor shows SHALL be hidden under it.
+On Linux and macOS, where the editor's window has no native menu bar of its own, the editor SHALL draw its menu bar along the top of its own window, above the panels, with the same menus, entries, shortcuts shown (with Cmd in place of Ctrl on macOS), greyed-out and ticked entries as on Windows, in the editor's language. The panels SHALL start below it, and nothing the editor shows SHALL be hidden under it.
 
 #### Scenario: Opening File with the mouse
 - **WHEN** the user clicks File in the editor on Linux
@@ -121,3 +121,7 @@ On Linux, where the editor's window has no native menu bar, the editor SHALL dra
 #### Scenario: Language ticked
 - **WHEN** the Language menu is opened on Linux after choosing Español
 - **THEN** Español is ticked and the bar reads Archivo, Herramientas, Idioma
+
+#### Scenario: Shortcuts shown on macOS
+- **WHEN** the user opens File in the editor on macOS
+- **THEN** the bar is drawn inside the window and the entries show their keys with Cmd, for example "Export project... Cmd+Shift+E"

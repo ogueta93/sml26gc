@@ -1,13 +1,13 @@
 # Development
 
-How to set up a computer to work on the project, build and check it, make the Windows and Linux
-packages, and how the emulator and the editor were made. The rules for changing the code are in
+How to set up a computer to work on the project, build and check it, make the Windows, Linux and
+macOS packages, and how the emulator and the editor were made. The rules for changing the code are in
 [`AGENTS.md`](../AGENTS.md); the code's layout in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## What you need
 
-Development happens on Windows 11 or Linux, on x86-64; each platform's package is built on that
-platform.
+Development happens on Windows 11 or Linux, on x86-64, or on macOS (Apple Silicon or Intel);
+each platform's package is built on that platform.
 
 ### Windows
 
@@ -41,7 +41,24 @@ In one go:
     sudo apt install build-essential pkg-config libasound2-dev libudev-dev git docker.io
     sudo dnf install gcc pkgconf-pkg-config alsa-lib-devel systemd-devel git moby-engine dpkg
 
-### Both
+### macOS
+
+A recent macOS (the package is built for macOS 11 and later whatever macOS builds it: "Building
+for macOS"), on Apple Silicon or Intel.
+
+| Tool | Why | How to get it |
+|---|---|---|
+| Xcode Command Line Tools | The linker, `lipo`, `codesign` and `ditto` (Xcode itself is not needed) | `xcode-select --install` |
+| Rust (stable, through rustup) with both Apple targets | The language of every program: Rust 1.100 or later; both targets for the universal package | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh`, then `rustup target add aarch64-apple-darwin x86_64-apple-darwin`; `rustup update` later |
+| Git | The repository and its workflow (`AGENTS.md`) | Comes with the Command Line Tools |
+| Your own Super Mario Land 2 - 6 Golden Coins (USA, Europe) (Rev 1) cartridge file | As on Windows | As on Windows (`shasum -a 1 FILE` gives its SHA-1) |
+| Optional: Node.js and the OpenSpec CLI (`npm install -g @fission-ai/openspec`) | Planning changes as specs (`openspec/`) | [nodejs.org](https://nodejs.org) |
+
+No system library is needed: sound (CoreAudio), controllers (IOKit), the window (OpenGL) and the
+file panels are part of macOS. Do not let Homebrew libraries into the build: the package refuses
+executables that link one.
+
+### All
 
 Every other dependency (macroquad, cpal, gilrs, png...) is a Rust crate Cargo downloads by itself.
 No Python, CMake or other build system is needed.
@@ -56,6 +73,9 @@ On Linux the same, with `target/release/sml26gc` and `target/release/sml26gc_edi
 what any player's computer needs (`packaging/linux/README.txt`, "What the computer needs"); built
 this way they need the glibc of the computer that built them, which is fine for your own use but
 not for giving them to others (use the package, below).
+
+On macOS the same paths as on Linux; built this way they are not app bundles, so they behave as
+the unpacked programs of the other systems (below), with Cmd for the editor's shortcuts.
 
 The emulator is too slow unoptimised, so even `cargo build` (debug) is optimised; use `--release`
 for playing. `.cargo/config.toml` links the C runtime into every Windows build.
@@ -77,7 +97,7 @@ them out first.
 | `sml26gc.exe --self-test out.json` | Checks the game's rules read from the cartridge (`MECHANICS.md`) against the running game |
 | `sml26gc.exe --dump DIR --script ... --frames N --every N` | Screens of a scripted run |
 | `sml26gc.exe --screenshot FILE [--start-screen]`, `sml26gc_editor.exe --screenshot FILE [--project NAME --level N]` | One picture of the window, with default settings (unattended checks) |
-| `cargo xtask targets`, `cargo xtask package TARGET`, `cargo xtask check-portable` | The release tool, below ("Building for Windows", "Building for Linux") |
+| `cargo xtask targets`, `cargo xtask package TARGET`, `cargo xtask check-portable` | The release tool, below ("Building for Windows", "Building for Linux", "Building for macOS") |
 
 Never run `cargo fmt`: the code is formatted by hand (`AGENTS.md`).
 
@@ -197,6 +217,56 @@ Build errors and their cause:
 A package is published only as part of a release (below). What a computer needs to run it is in
 [`packaging/linux/README.txt`](../packaging/linux/README.txt).
 
+## Building for macOS
+
+The package another person unpacks and opens, on a Mac:
+
+    cargo xtask package macos-universal
+
+1. Builds the game and the editor with the `dist` profile twice, for `aarch64-apple-darwin`
+   (Apple Silicon) and `x86_64-apple-darwin` (Intel), with `MACOSX_DEPLOYMENT_TARGET=11.0`: the
+   compiler and the linker then refuse, or link weakly, anything newer than macOS 11.
+2. Joins each program's two builds into one universal executable with `lipo`, in
+   `target/universal-apple-darwin/dist/`.
+3. Checks each executable: both architectures are there, each one's minimum macOS
+   (`LC_BUILD_VERSION`'s `minos`, what `vtool -show-build` prints) is at most 11.0, and it links
+   only `/usr/lib/` and `/System/Library/Frameworks/` (what `otool -L` lists). It prints the
+   minimum found, which the read-me states.
+4. Writes `dist/macos-universal/sml26gc/`, as for Windows but with `README.txt` from
+   `packaging/macos/`, and the executables in two app bundles: `SML2 6GC.app` and
+   `SML2 6GC Editor.app`, each with `Contents/MacOS/<executable>`, `Info.plist` (identifier from
+   `PRODUCT_BUNDLE_ID` in `.cargo/config.toml`, the version, `LSMinimumSystemVersion` 11.0) and
+   `Contents/Resources/<executable>.icns`, made from `assets/icons/`. Each bundle is signed ad hoc
+   (`codesign -s -`): Apple Silicon runs no unsigned code.
+5. Zips that folder with `ditto` (which keeps the bundles' modes and signatures) to
+   `dist/sml26gc-<version>-macos-universal.zip`.
+
+The oldest macOS is 11 Big Sur: every Apple Silicon Mac and the Intel Macs from about 2013-2014.
+It is in two places, changed together: the `macos` limit of `macos-universal` in
+`xtask/src/main.rs` (it sets the deployment target, the check and `LSMinimumSystemVersion`), and
+the versions and Macs named in `packaging/macos/README.txt`. A program built on a newer macOS can
+still call a function only that macOS has (through a dependency), linked weakly: the check cannot
+see it, so try each release's package on the oldest macOS you can (a Mac, or a macOS 12 virtual
+machine in UTM or Parallels on Apple Silicon).
+
+The apps are signed ad hoc, not with an Apple developer identity, and not notarised (that needs a
+paid Apple developer account): macOS refuses them the first time, and the read-me says how to
+open them.
+
+Build errors and their cause:
+
+| Error | Cause and fix |
+|---|---|
+| `the macos-universal package is built on macos` | The command was run on Windows or Linux: run it on a Mac |
+| `error[E0463]: can't find crate for 'core'` ... `x86_64-apple-darwin` | A target is missing: `rustup target add aarch64-apple-darwin x86_64-apple-darwin` |
+| `xcrun: error: invalid active developer path`, `lipo` or `codesign` not found | The Command Line Tools are missing: `xcode-select --install` |
+| `... needs macOS 1x.0, newer than the 11.0 ...` | Built without the deployment target (`MACOSX_DEPLOYMENT_TARGET` set to something else in the environment), or a dependency needs a newer macOS: unset it, or avoid that dependency |
+| `... needs /opt/homebrew/...` (or `/usr/local/...`) | A dependency linked a Homebrew library: build without it on the `PATH`/`PKG_CONFIG_PATH`, or avoid that dependency |
+| `... has no X86_64 code` | `lipo` joined builds of one architecture only: run the command again |
+
+A package is published only as part of a release (below). What a Mac needs to run it is in
+[`packaging/macos/README.txt`](../packaging/macos/README.txt).
+
 ## Workflow and releases
 
 The rules are in [`AGENTS.md`](../AGENTS.md), "Git workflow"; this is why they are so.
@@ -230,11 +300,14 @@ Publishing release X.Y.Z, once the user has asked for it and agreed the number:
    new empty "Unreleased" above it, run the tests, commit "Release X.Y.Z", push.
 2. `git checkout main`, `git merge --no-ff develop`, `git tag -a vX.Y.Z -m "Version X.Y.Z"`,
    `git push origin main vX.Y.Z`.
-3. From `main`, on Windows `cargo xtask package windows-x64`
-   (`dist\sml26gc-X.Y.Z-windows-x64.zip`) and on Linux `cargo xtask package linux-x64`
-   (`dist/sml26gc-X.Y.Z-linux-x64.tar.gz` and `dist/sml26gc_X.Y.Z_amd64.deb`).
+3. From `main` (or the tag `vX.Y.Z`), on Windows `cargo xtask package windows-x64`
+   (`dist\sml26gc-X.Y.Z-windows-x64.zip`), on Linux `cargo xtask package linux-x64`
+   (`dist/sml26gc-X.Y.Z-linux-x64.tar.gz` and `dist/sml26gc_X.Y.Z_amd64.deb`) and on a Mac
+   `cargo xtask package macos-universal` (`dist/sml26gc-X.Y.Z-macos-universal.zip`; when someone
+   else builds it, they build it from the tag and send the zip with its `shasum -a 256`, which is
+   checked before uploading).
 4. On GitHub, Releases, "Draft a new release": choose the tag `vX.Y.Z`, paste the changelog's
-   section as the text, attach the three files, publish (or `gh release create vX.Y.Z <files>
+   section as the text, attach the four files, publish (or `gh release create vX.Y.Z <files>
    --notes-file <section>` with the GitHub CLI).
 
 ## How the emulator was made, and why

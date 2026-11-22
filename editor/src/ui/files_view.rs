@@ -13,7 +13,7 @@ use macroquad::prelude::*;
 use super::inset::is_mouse_button_down;
 
 impl Editor {
-    /// A dialog takes the keyboard while it is open, so the editor would never see Ctrl or
+    /// A dialog takes the keyboard while it is open, so the editor would never see Ctrl (Cmd) or
     /// Shift go up: the action waits until nothing is held.
     pub(super) fn queue_file(&mut self, a: Action) {
         if a == Action::ReplaceLevel && self.cur < LEVELS {
@@ -45,7 +45,7 @@ impl Editor {
     }
 
     pub(super) fn run_pending_file(&mut self) {
-        let held = [KeyCode::LeftControl, KeyCode::RightControl, KeyCode::LeftShift, KeyCode::RightShift, KeyCode::LeftAlt, KeyCode::RightAlt].iter().any(|&k| is_key_down(k))
+        let held = super::shortcuts::MODIFIERS.iter().any(|&k| is_key_down(k))
             || [MouseButton::Left, MouseButton::Right, MouseButton::Middle].iter().any(|&b| is_mouse_button_down(b));
         if held {
             return;

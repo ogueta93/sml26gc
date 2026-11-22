@@ -2,7 +2,7 @@
 //! (this is part of the contract between them, see docs/ARCHITECTURE.md, "Contract between game and editor").
 //!
 //! In the data folder (`data_dir`: the executables' own folder, as the programs are portable, or
-//! the user's data folder for the installed form):
+//! the user's data folder for the installed form and the macOS app bundles):
 //!   base_cartridge.txt                the original cartridge file both programs use
 //!   settings.cfg                      the game's settings
 //!   editor.cfg                        the editor's own settings
@@ -24,15 +24,34 @@ pub fn exe_dir() -> PathBuf {
 pub const INSTALLED_MARKER: &str = "installed";
 
 /// The folder every data file lives in, created when missing: the executables' folder, so the
-/// unpacked package is self-contained; for the installed form, `$XDG_DATA_HOME/<id>`.
+/// unpacked package is self-contained; for the installed form, `$XDG_DATA_HOME/<id>`; for a macOS
+/// app bundle, whose folder must not be written, `~/Library/Application Support/<id>`.
 pub fn data_dir() -> PathBuf {
     static DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
     DIR.get_or_init(|| {
-        let dir = data_dir_for(&exe_dir(), std::env::var_os("XDG_DATA_HOME"), std::env::var_os("HOME"));
+        let exe = exe_dir();
+        let dir = if cfg!(target_os = "macos") && bundle_of(&exe).is_some() {
+            app_support_dir(&exe, std::env::var_os("HOME"))
+        } else {
+            data_dir_for(&exe, std::env::var_os("XDG_DATA_HOME"), std::env::var_os("HOME"))
+        };
         let _ = std::fs::create_dir_all(&dir);
         dir
     })
     .clone()
+}
+
+/// The app bundle (`.../Name.app`) holding the executables' folder `exe_dir`, which is its
+/// `Contents/MacOS`.
+fn bundle_of(exe_dir: &Path) -> Option<&Path> {
+    let contents = exe_dir.parent().filter(|_| exe_dir.file_name().is_some_and(|n| n == "MacOS"))?;
+    let bundle = contents.parent().filter(|_| contents.file_name().is_some_and(|n| n == "Contents"))?;
+    bundle.extension().is_some_and(|e| e.eq_ignore_ascii_case("app")).then_some(bundle)
+}
+
+/// The macOS apps' data folder, shared by both; the executables' folder without a home.
+fn app_support_dir(exe_dir: &Path, home: Option<std::ffi::OsString>) -> PathBuf {
+    home.map(PathBuf::from).filter(|h| h.is_absolute()).map_or_else(|| exe_dir.to_path_buf(), |h| h.join("Library/Application Support").join(env!("PRODUCT_ID")))
 }
 
 /// A relative `XDG_DATA_HOME` is invalid and ignored (XDG Base Directory specification).
@@ -165,19 +184,38 @@ pub fn zone_exports() -> PathBuf {
     exports_dir().join("zones")
 }
 
-/// The game program, next to the editor.
+/// The game program, next to the editor (or in its app bundle beside the editor's).
 pub fn game_exe() -> PathBuf {
-    exe_dir().join(format!("{GAME_PROGRAM}{}", std::env::consts::EXE_SUFFIX))
+    other_program(&exe_dir(), GAME_PROGRAM, GAME_BUNDLE)
 }
 
-/// The editor program, next to the game.
+/// The editor program, next to the game (or in its app bundle beside the game's).
 pub fn editor_exe() -> PathBuf {
-    exe_dir().join(format!("{EDITOR_PROGRAM}{}", std::env::consts::EXE_SUFFIX))
+    other_program(&exe_dir(), EDITOR_PROGRAM, EDITOR_BUNDLE)
+}
+
+/// `program` next to the running one in `exe_dir`; when it is not there and the running one is in
+/// a macOS app bundle, in `bundle` beside it. The first place when neither has it.
+fn other_program(exe_dir: &Path, program: &str, bundle: &str) -> PathBuf {
+    let beside = exe_dir.join(format!("{program}{}", std::env::consts::EXE_SUFFIX));
+    if beside.is_file() || !cfg!(target_os = "macos") {
+        return beside;
+    }
+    other_bundle_program(exe_dir, program, bundle).filter(|p| p.is_file()).unwrap_or(beside)
+}
+
+/// Where `program` is in `bundle` when the running program's folder `exe_dir` is in an app bundle.
+fn other_bundle_program(exe_dir: &Path, program: &str, bundle: &str) -> Option<PathBuf> {
+    Some(bundle_of(exe_dir)?.parent()?.join(bundle).join("Contents/MacOS").join(program))
 }
 
 /// The programs' names (the `[[bin]]` names of `game` and `editor`), without the system's suffix.
 pub const GAME_PROGRAM: &str = "sml26gc";
 pub const EDITOR_PROGRAM: &str = "sml26gc_editor";
+
+/// The macOS app bundles of the game and the editor (made by `xtask/src/macos.rs`), kept side by side.
+pub const GAME_BUNDLE: &str = "SML2 6GC.app";
+pub const EDITOR_BUNDLE: &str = "SML2 6GC Editor.app";
 
 #[cfg(test)]
 mod tests {
@@ -214,6 +252,27 @@ mod tests {
         assert_eq!(data_dir_for(&exe, Some("relative".into()), home), Path::new("/home/u/.local/share/sml26gc"));
         assert_eq!(data_dir_for(&exe, None, None), exe);
         std::fs::remove_dir_all(&exe).unwrap();
+    }
+
+    #[test]
+    fn the_macos_app_bundles() {
+        let editor = Path::new("/Applications/SML2 6GC Editor.app/Contents/MacOS");
+        assert_eq!(bundle_of(editor), Some(Path::new("/Applications/SML2 6GC Editor.app")));
+        assert_eq!(bundle_of(Path::new("/Users/u/sml26gc/target/release")), None);
+        assert_eq!(bundle_of(Path::new("/x/Contents/MacOS")), None);
+        assert_eq!(other_bundle_program(editor, GAME_PROGRAM, GAME_BUNDLE).unwrap(), Path::new("/Applications/SML2 6GC.app/Contents/MacOS/sml26gc"));
+        assert_eq!(other_bundle_program(Path::new("/Users/u/target/release"), GAME_PROGRAM, GAME_BUNDLE), None);
+        assert_eq!(app_support_dir(editor, Some("/Users/u".into())), Path::new("/Users/u/Library/Application Support/sml26gc"));
+        assert_eq!(app_support_dir(editor, None), editor);
+    }
+
+    #[test]
+    fn the_xtask_makes_the_bundles_the_programs_look_for() {
+        let macos = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../xtask/src/macos.rs")).unwrap();
+        for bundle in [GAME_BUNDLE, EDITOR_BUNDLE] {
+            let name = bundle.strip_suffix(".app").unwrap();
+            assert!(macos.contains(&format!("\"{name}\"")), "xtask/src/macos.rs does not name {name}");
+        }
     }
 
     #[test]
