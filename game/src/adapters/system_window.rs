@@ -1,6 +1,7 @@
 //! The system around the window: keeping the check window out of the way (it goes behind the
 //! others and focus returns to whatever had it; Windows only), and the system's dialog to open a
-//! cartridge file (Win32, or `host::file_dialog` elsewhere).
+//! cartridge file (Win32, `host::file_dialog` elsewhere, or the browser's file chooser, whose
+//! file arrives later: `arrived_cartridge`).
 
 #[cfg(windows)]
 mod imp {
@@ -46,6 +47,10 @@ mod imp {
         true
     }
 
+    pub fn arrived_cartridge() -> Option<std::path::PathBuf> {
+        None
+    }
+
     /// Is the window titled `title` the one in front (taking the keyboard)?
     pub fn in_front(title: &str) -> bool {
         let w: Vec<u16> = title.encode_utf16().chain(Some(0)).collect();
@@ -70,7 +75,30 @@ mod imp {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(target_arch = "wasm32")]
+mod imp {
+    pub fn remember_foreground() {}
+    pub fn send_to_back(_: &str) {}
+    pub fn in_front(_: &str) -> bool {
+        true
+    }
+    /// Opens the browser's file chooser; the file comes through `arrived_cartridge`.
+    pub fn pick_cartridge(_: &str, _: Option<&std::path::Path>, _: &str, _: &str) -> Option<std::path::PathBuf> {
+        host::web::call_text(host::web::TextCall::ChooseFile, ".gb,.gbc");
+        None
+    }
+
+    pub fn dialog_available() -> bool {
+        true
+    }
+
+    /// A file chosen in the browser's file chooser or dropped on the page since the last frame.
+    pub fn arrived_cartridge() -> Option<std::path::PathBuf> {
+        host::web::text(host::web::Text::Arrived).map(|name| host::web::incoming_dir().join(name))
+    }
+}
+
+#[cfg(all(not(windows), not(target_arch = "wasm32")))]
 mod imp {
     pub fn remember_foreground() {}
     pub fn send_to_back(_: &str) {}
@@ -85,6 +113,10 @@ mod imp {
     pub fn dialog_available() -> bool {
         host::file_dialog::available()
     }
+
+    pub fn arrived_cartridge() -> Option<std::path::PathBuf> {
+        None
+    }
 }
 
-pub use imp::{dialog_available, in_front, pick_cartridge, remember_foreground, send_to_back};
+pub use imp::{arrived_cartridge, dialog_available, in_front, pick_cartridge, remember_foreground, send_to_back};

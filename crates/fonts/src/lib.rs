@@ -10,8 +10,11 @@
 //! The Latin languages are written without accents and keep the built-in font.
 use i18n::Lang;
 
+#[cfg(feature = "bundled")]
 pub const BIZ_UD_GOTHIC: &[u8] = include_bytes!("../../../fonts/BIZUDGothic-Regular.ttf");
+#[cfg(feature = "bundled")]
 pub const NOTO_SANS_SC: &[u8] = include_bytes!("../../../fonts/NotoSansSC-Regular.otf");
+#[cfg(feature = "bundled")]
 pub const NOTO_SANS_KR: &[u8] = include_bytes!("../../../fonts/NotoSansKR-Regular.otf");
 
 /// Which font a language is drawn with.
@@ -35,6 +38,7 @@ impl Face {
     }
 
     /// The font file's bytes (None: the built-in font).
+    #[cfg(feature = "bundled")]
     pub fn bytes(self) -> Option<&'static [u8]> {
         match self {
             Face::BuiltIn => None,
@@ -43,12 +47,32 @@ impl Face {
             Face::NotoSansKr => Some(NOTO_SANS_KR),
         }
     }
+
+    /// The font file's name in `fonts/` (None: the built-in font).
+    pub fn file(self) -> Option<&'static str> {
+        match self {
+            Face::BuiltIn => None,
+            Face::BizUdGothic => Some("BIZUDGothic-Regular.ttf"),
+            Face::NotoSansSc => Some("NotoSansSC-Regular.otf"),
+            Face::NotoSansKr => Some("NotoSansKR-Regular.otf"),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    #[test]
+    fn the_file_names_are_in_the_fonts_folder() {
+        for l in Lang::ALL {
+            if let Some(f) = Face::of(l).file() {
+                assert!(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fonts").join(f).is_file(), "{f}");
+            }
+        }
+    }
+
+    #[cfg(feature = "bundled")]
     #[test]
     fn every_language_has_a_face_and_the_files_are_fonts() {
         for l in Lang::ALL {

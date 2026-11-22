@@ -3,7 +3,7 @@
 //! adapters, not changes through the code (docs/ARCHITECTURE.md, "Platforms").
 use std::path::Path;
 
-const SYSTEM_MARKS: [&str; 7] = ["cfg(windows)", "cfg(not(windows))", "cfg(unix)", "cfg(target_os", "cfg!(windows)", "cfg!(target_os", "windows_sys"];
+const SYSTEM_MARKS: [&str; 9] = ["cfg(windows)", "cfg(not(windows))", "cfg(unix)", "cfg(target_os", "cfg!(windows)", "cfg!(target_os", "cfg(target_arch", "cfg!(target_arch", "windows_sys"];
 
 /// Where system-dependent code may be (paths from the workspace root, with `/`).
 fn allowed(path: &str) -> bool {

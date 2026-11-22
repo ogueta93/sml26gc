@@ -71,3 +71,21 @@ The supported cartridge SHALL be named in the game's texts with its revision, as
 #### Scenario: Another revision
 - **WHEN** a file of revision 0 of Super Mario Land 2 - 6 Golden Coins (USA, Europe) is chosen
 - **THEN** it is refused, and the message names Super Mario Land 2 - 6 Golden Coins (USA, Europe) (Rev 1) and says other revisions are refused
+
+### Requirement: The cartridge in the browser
+In the web game, the start screen's Browse SHALL open the browser's file chooser, and a cartridge file dropped anywhere on the page SHALL be taken as if chosen. The file's contents, not its path, SHALL become the base cartridge, checked as on the desktop.
+
+#### Scenario: Browse on a phone
+- **WHEN** Browse is tapped on the start screen in Safari on an iPhone and the cartridge file is chosen from Files
+- **THEN** it is checked, accepted, and the start screen offers VANILLA
+
+#### Scenario: Dropping the file
+- **WHEN** the cartridge file is dragged from a folder and dropped on the page in a desktop browser
+- **THEN** it is checked and accepted as with Browse
+
+### Requirement: The start screen on a phone
+The start screen SHALL fit a screen of 360 by 640 points in portrait and in landscape, with every text readable and every button large enough to tap, and SHALL be used by tapping as by the mouse.
+
+#### Scenario: A small phone upright
+- **WHEN** the web game is opened on a phone 360 points wide held in portrait
+- **THEN** the whole start screen is visible without zooming, and tapping Play starts the game chosen

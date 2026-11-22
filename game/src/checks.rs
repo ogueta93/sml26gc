@@ -18,7 +18,7 @@ pub fn menu_shots(rom: &Path, dir: &Path) {
         gb.run_frame();
         gb.clear_audio();
     }
-    let _ = std::fs::create_dir_all(dir);
+    let _ = host::storage::create_dir_all(dir);
     let mut st = Settings::default();
     let icons = cart_model::cheats::Item::ALL.map(|i| cart_model::cheats::item_picture(&mut gb, i));
     for (lang, tag) in crate::domain::i18n::LANG_IDS.iter().enumerate() {

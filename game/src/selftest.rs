@@ -17,7 +17,7 @@ pub fn dump(rom: Option<&Path>, dir: &Path, script: &str, frames: u32, every: u3
             return;
         }
     };
-    let _ = std::fs::create_dir_all(dir);
+    let _ = host::storage::create_dir_all(dir);
     let sc = parse_script(script);
     for f in 0..frames {
         gb.set_buttons(buttons_at(&sc, f));

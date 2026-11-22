@@ -22,7 +22,7 @@ pub struct TitlePreview {
 impl TitlePreview {
     /// The title of cartridge `rom`, None when it cannot be read or run.
     pub fn new(rom: &Path, palette: Palette) -> Option<TitlePreview> {
-        let mut gb = Gb::new(std::fs::read(rom).ok()?, 44100).ok()?;
+        let mut gb = Gb::new(host::storage::read(rom).ok()?, 44100).ok()?;
         for _ in 0..TO_TITLE {
             gb.run_frame_with(Buttons::NONE);
         }

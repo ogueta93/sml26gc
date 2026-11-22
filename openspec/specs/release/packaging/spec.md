@@ -7,7 +7,7 @@ on a supported platform, with only what the programs need and the notices they m
 ## Requirements
 
 ### Requirement: One command builds a platform's package
-A single command run from the repository, naming a platform target (`windows-x64`, `linux-x64` or `macos-universal`), SHALL build the editor and the game for that target in release, assemble the package folder `dist/<target>/sml26gc/` from an empty folder each time, and write the target's packages (see "Each platform's packages"). An unknown target SHALL stop with a message listing the known ones, and nothing SHALL be written.
+A single command run from the repository, naming a platform target (`windows-x64`, `linux-x64`, `macos-universal` or `web`), SHALL build the editor and the game for that target in release, assemble the package folder `dist/<target>/sml26gc/` from an empty folder each time, and write the target's packages (see "Each platform's packages"). An unknown target SHALL stop with a message listing the known ones, and nothing SHALL be written.
 
 #### Scenario: Building the Windows package
 - **WHEN** the developer runs the package command for `windows-x64`
@@ -20,6 +20,10 @@ A single command run from the repository, naming a platform target (`windows-x64
 #### Scenario: Building the macOS package
 - **WHEN** the developer runs the package command for `macos-universal` on a Mac
 - **THEN** `dist/macos-universal/sml26gc/` holds the two app bundles built in release, and `dist/sml26gc-<version>-macos-universal.zip` holds that folder with the bundles intact (executable, signed)
+
+#### Scenario: Building the web package
+- **WHEN** the developer runs the package command for `web` on Linux, Windows or macOS
+- **THEN** `dist/web/sml26gc/` holds the web game built in release, and `dist/sml26gc-<version>-web.zip` holds that folder
 
 #### Scenario: An unknown target
 - **WHEN** the package command is run for `amiga`
@@ -204,3 +208,17 @@ When building the macOS package, the package command SHALL build each program fo
 #### Scenario: Packaging off a Mac
 - **WHEN** the package command for `macos-universal` is run on Linux
 - **THEN** it says the macOS package is built on macOS and writes nothing
+
+### Requirement: The web package's contents
+The web package folder SHALL hold exactly: the game's page (`index.html`), its WebAssembly program, the loader and the page's script, the fonts loaded on demand, the web app manifest and its icons, a read-me, the cartridge notice, the licence text, the legal notice, the changelog, the game's manual and the licences folder. It SHALL NOT hold source files, cartridges or anything made from one, or any saved data.
+
+#### Scenario: Listing the web package
+- **WHEN** the web package folder is listed
+- **THEN** it holds `index.html`, the `.wasm` and `.js` files, `fonts/`, `manifest.webmanifest`, `icons/`, `README.txt`, `NO-CARTRIDGE.txt`, `LICENSE.txt`, `LEGAL.md`, `CHANGELOG.md`, `manuals/` and `licenses/`, and nothing else
+
+### Requirement: The web read-me
+The web package's read-me SHALL say which browsers play it, how to serve it, where the cartridge and the data are kept, and what to do for each way it can fail to start or work.
+
+#### Scenario: What the web read-me covers
+- **WHEN** the web package's read-me is read
+- **THEN** it gives the browsers, that it must be served by a web server, how to serve it on one's own computer (an example command for Windows, Linux and macOS) and on any static web host over HTTPS, that the cartridge stays in the browser, that the data is kept in the browser and clearing the site's data removes it, how to add it to a phone's home screen, and what to do for a page that stays empty, no sound (the iPhone's silent switch), a refused cartridge and a controller that does nothing

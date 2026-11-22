@@ -6,6 +6,34 @@ What each version of the programs brings, as a person using them notices it. The
 
 ## [Unreleased]
 
+### Added
+
+- The game in a web browser (`sml26gc-<version>-web.zip`), on a computer, a phone or a tablet:
+  serve the folder with any web server and open it. The cartridge you choose (or drop on the
+  page) stays in the browser, with your settings and saves; clearing the site's data removes
+  them. The editor is not part of it.
+- On a phone or tablet, on-screen controls: a D-pad that follows the finger, A and B (both at
+  once between them), Select, Start and the pause menu, upright like a handheld or across with
+  the picture between them, and smaller buttons for fast forward, and with the cheats mode
+  rewind, save and load state and restart level. In the pause menu, Controls: when they show,
+  their size and vibration. Turned off with nothing else to play with, a small button brings
+  them back.
+
+### Changed
+
+- Display, Scale has a third choice, stretched: the picture fills all the room (the window, or
+  the room the on-screen controls leave), out of shape. A phone shows a larger picture with
+  fitted than with sharp.
+- The pause menu's Controls shows only the inputs there are: the controller's bindings while one
+  is connected, the keyboard's on a computer. With a controller connected it opens on the
+  controller's bindings.
+- The pause menu's footer, the start-up tag and the save state notes name the controller's
+  buttons while one is connected (it comes before the keyboard), and A and B with the on-screen
+  controls.
+- In the browser, a fullscreen button on the start screen and beside the on-screen menu button;
+  on an iPhone, the start screen says how to add the game to the home screen to play without
+  the browser's bars.
+
 ## [1.2.0] - 2026-11-22
 
 ### Added

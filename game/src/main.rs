@@ -2,8 +2,9 @@
 //! Game Boy implemented in Rust, drawn and heard through macroquad and cpal.
 //!
 //! Layers: `domain` (rules, no I/O) ← `application` (session use case) ← `ports` (traits)
-//! ← `adapters` (macroquad, cpal, files, Win32). This file is the composition root: it
-//! reads the command line, picks the adapters and starts the window loop. Opened without
+//! ← `adapters` (macroquad, cpal, files, Win32, the browser's page). This file is the
+//! composition root: it reads the arguments, picks the adapters (`adapters::platform` for what
+//! differs between the desktop and the browser) and starts the window loop. Opened without
 //! a cartridge file, it first shows the start screen: the base cartridge, then what to play
 //! (`macroquad_picker`).
 #![cfg_attr(all(windows, not(test)), windows_subsystem = "windows")]
@@ -14,17 +15,17 @@ mod domain;
 mod ports;
 mod selftest;
 
-use adapters::cpal_audio::Audio;
 use adapters::fs_stores::{BatteryFile, DefaultSettings, NoBattery, NoZoneProgress, SettingsFile, ZoneFile};
-use adapters::gilrs_pad::GilrsPad;
 use adapters::macroquad_display::{save_window_png, MacroquadDisplay, MacroquadWindow};
 use adapters::macroquad_keyboard::MacroquadKeyboard;
 use adapters::macroquad_picker::{Choice, Picker};
+use adapters::macroquad_touch::Touch;
+use adapters::platform::{self, Audio, Pad};
 use adapters::system_window;
 use application::preferences::Preferences;
 use application::session::{Flow, GameSession, SessionParts, TestGame};
 use domain::keys::Key;
-use ports::{AudioOut, Keyboard, SaveStore, SettingsStore, ZoneProgressStore};
+use ports::{AudioOut, Gamepad, Keyboard, SaveStore, SettingsStore, ZoneProgressStore};
 use std::path::PathBuf;
 
 #[derive(Default)]
@@ -128,7 +129,7 @@ const TITLE: &str = "SML2 6GC";
 
 fn main() {
     host::console::attach();
-    let raw: Vec<String> = std::env::args().skip(1).collect();
+    let raw = platform::arguments();
     if raw.first().map(|s| s == "--research").unwrap_or(false) {
         let rom = host::require_rom(None).unwrap_or_else(|e| {
             eprintln!("{e}");
@@ -142,7 +143,7 @@ fn main() {
 
     if let Some(out) = &args.self_test {
         let res = selftest::run(found.as_deref().ok());
-        if let Err(e) = std::fs::write(out, res) {
+        if let Err(e) = host::storage::write(out, res) {
             eprintln!("could not write {}: {e}", out.display());
             std::process::exit(1);
         }
@@ -155,20 +156,11 @@ fn main() {
 
     // A check run (--screenshot) is unattended: silent, default settings, no menu.
     let checking = args.screenshot.is_some();
-    let title = if checking { format!("{TITLE} [check {}]", std::process::id()) } else { TITLE.to_string() };
+    let title = if checking { format!("{TITLE} [check {}]", platform::run_tag()) } else { TITLE.to_string() };
     if checking {
         system_window::remember_foreground();
     }
-    let conf = macroquad::window::Conf {
-        window_title: title.clone(),
-        window_width: 640,
-        window_height: 576,
-        high_dpi: false,
-        window_resizable: true,
-        icon: include!(concat!(env!("OUT_DIR"), "/window_icon.rs")),
-        ..Default::default()
-    };
-    macroquad::Window::from_config(conf, run(args, found, checking, title));
+    macroquad::Window::from_config(platform::window_conf(title.clone()), run(args, found, checking, title));
 }
 
 /// Plug the adapters into a session, or keep the error to show it. `saves`: the folder of the
@@ -204,7 +196,8 @@ fn start(args: &Args, found: Result<PathBuf, String>, saves: Option<PathBuf>, ch
         test: args.test.then(|| TestGame { lives: args.lives.unwrap_or(99), coins: args.coins.unwrap_or(999), power: args.power.unwrap_or(0) }),
         start_point: args.point,
     };
-    Ok(GameSession::new(gb, parts))
+    let session = GameSession::new(gb, parts);
+    Ok(if platform::CAN_QUIT { session } else { session.without_quit() })
 }
 
 /// `--point`'s value: a map point in hexadecimal, `@` and a new zone's index when in one.
@@ -221,6 +214,19 @@ fn command_line_saves(args: &Args, checking: bool) -> Option<PathBuf> {
     (!checking && !args.test).then(|| host::saves_dir(args.project.as_deref()))
 }
 
+/// Make the cartridge file `p` the base cartridge, if it is the supported one, and show what it
+/// plays; else say why not.
+fn take_cartridge(picker: &mut Picker, p: &std::path::Path) {
+    let last = SettingsFile.load().last_play;
+    match host::base_cartridge::choose(p) {
+        Ok(()) => {
+            picker.error = None;
+            picker.reload(&last);
+        }
+        Err(e) => picker.error = Some(e.text(picker.lang())),
+    }
+}
+
 /// What the window shows: the start screen, the game, or why it could not start.
 enum App {
     Pick(Picker),
@@ -232,8 +238,9 @@ async fn run(args: Args, found: Result<PathBuf, String>, checking: bool, title: 
     macroquad::input::prevent_quit();
     let audio = if checking { Audio::silent() } else { Audio::new() };
     let keyboard = MacroquadKeyboard;
-    let mut pad = GilrsPad::new();
+    let mut pad = Pad::new();
     let mut display = MacroquadDisplay::new();
+    let mut touch = Touch::new();
     // no cartridge on the command line: the start screen first (checks find it themselves)
     let mut app = if args.rom.is_none() && (!checking || args.start_screen) {
         App::Pick({
@@ -254,6 +261,9 @@ async fn run(args: Args, found: Result<PathBuf, String>, checking: bool, title: 
             system_window::send_to_back(&title);
         }
         let dt = macroquad::time::get_frame_time();
+        // the page's own buttons are only where this frame's screen puts them again
+        platform::place_page_button(platform::PageButton::Browse, None);
+        platform::place_page_button(platform::PageButton::Fullscreen, None);
         let mut next = None;
         match &mut app {
             App::Pick(picker) => {
@@ -262,13 +272,8 @@ async fn run(args: Args, found: Result<PathBuf, String>, checking: bool, title: 
                     Choice::Quit => break,
                     Choice::Play(p) => Some(p),
                     Choice::Edit(project) => {
-                        let mut cmd = std::process::Command::new(host::editor_exe());
-                        match &project {
-                            Some(p) => cmd.arg("--project").arg(p),
-                            None => cmd.arg("--new-project"),
-                        };
-                        if let Err(e) = cmd.spawn() {
-                            picker.error = Some(format!("{}: {e}", host::editor_exe().display()));
+                        if let Err(e) = platform::open_editor(project.as_deref()) {
+                            picker.error = Some(e);
                         }
                         None
                     }
@@ -288,20 +293,16 @@ async fn run(args: Args, found: Result<PathBuf, String>, checking: bool, title: 
                     Choice::Browse => {
                         let (t, kind) = picker.dialog_texts();
                         if let Some(p) = system_window::pick_cartridge(&title, picker.start_dir().as_deref(), t, kind) {
-                            let last = SettingsFile.load().last_play;
-                            match host::base_cartridge::choose(&p) {
-                                Ok(()) => {
-                                    picker.error = None;
-                                    picker.reload(&last);
-                                }
-                                Err(e) => picker.error = Some(e.text(picker.lang())),
-                            }
+                            take_cartridge(picker, &p);
                         } else if !system_window::dialog_available() {
                             picker.error = Some(host::file_dialog::unavailable_text(picker.lang()).into());
                         }
                         None
                     }
                 };
+                if let Some(p) = system_window::arrived_cartridge() {
+                    take_cartridge(picker, &p);
+                }
                 let chosen = chosen.and_then(|p| match picker.ready(&p) {
                     Ok(p) => Some(p),
                     Err(e) => {
@@ -324,10 +325,17 @@ async fn run(args: Args, found: Result<PathBuf, String>, checking: bool, title: 
             }
             App::Run(session) => {
                 pad.poll(checking || system_window::in_front(&title));
-                if session.frame_with(dt, &keyboard, &pad, &audio) == Flow::Quit {
+                let extras = session.touch_extras();
+                if touch.update(session.settings(), keyboard.last_pressed().is_some(), pad.last_pressed().is_some(), pad.connected(), &extras) {
+                    session.show_touch_controls();
+                }
+                session.set_devices(touch.devices());
+                let bindings = session.settings().pad;
+                if session.frame_with(dt, &keyboard, &touch.pad(&pad, bindings), &audio) == Flow::Quit {
                     break;
                 }
-                display.present(session.screen(), session.palette(), session.settings().integer_scale);
+                display.present(session.screen(), session.palette(), session.settings().scale, touch.picture());
+                touch.draw();
             }
             App::Fail(prefs, error) => {
                 if keyboard.pressed(Key::F11) {

@@ -30,16 +30,21 @@ pub fn data_dir() -> PathBuf {
     static DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
     DIR.get_or_init(|| {
         let exe = exe_dir();
-        let dir = if cfg!(target_os = "macos") && bundle_of(&exe).is_some() {
+        let dir = if cfg!(target_arch = "wasm32") {
+            PathBuf::from(WEB_DATA_DIR)
+        } else if cfg!(target_os = "macos") && bundle_of(&exe).is_some() {
             app_support_dir(&exe, std::env::var_os("HOME"))
         } else {
             data_dir_for(&exe, std::env::var_os("XDG_DATA_HOME"), std::env::var_os("HOME"))
         };
-        let _ = std::fs::create_dir_all(&dir);
+        let _ = crate::storage::create_dir_all(&dir);
         dir
     })
     .clone()
 }
+
+/// The data folder in the browser's storage.
+const WEB_DATA_DIR: &str = "/sml26gc";
 
 /// The app bundle (`.../Name.app`) holding the executables' folder `exe_dir`, which is its
 /// `Contents/MacOS`.
@@ -69,10 +74,14 @@ pub fn data_dir_problem(lang: i18n::Lang) -> Option<&'static str> {
     (!data_dir_writable()).then(|| crate::texts::tr(lang, "This folder cannot be written: settings, projects and saves will not be kept. Move the program's folder somewhere you can write, such as Documents."))
 }
 
+/// The browser's storage can always be written.
 fn data_dir_writable() -> bool {
+    if cfg!(target_arch = "wasm32") {
+        return true;
+    }
     let probe = data_dir().join(format!(".write-test-{}", std::process::id()));
-    let ok = std::fs::write(&probe, b"").is_ok();
-    let _ = std::fs::remove_file(&probe);
+    let ok = crate::storage::write(&probe, b"").is_ok();
+    let _ = crate::storage::remove_file(&probe);
     ok
 }
 
@@ -140,14 +149,14 @@ pub fn project_restore_points(name: &str) -> PathBuf {
 
 /// The cartridge file in project `name`'s folder, whatever it is called.
 pub fn project_rom_in(name: &str) -> Option<PathBuf> {
-    let mut v: Vec<PathBuf> = std::fs::read_dir(project_dir(name)).ok()?.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("gb"))).collect();
+    let mut v: Vec<PathBuf> = crate::storage::read_dir(project_dir(name)).ok()?.into_iter().filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("gb"))).collect();
     v.sort();
     v.into_iter().next()
 }
 
 /// The projects (folders of `projects_dir`), sorted by name.
 pub fn projects() -> Vec<String> {
-    let mut v: Vec<String> = std::fs::read_dir(projects_dir()).into_iter().flatten().flatten().filter(|e| e.path().is_dir()).filter_map(|e| e.file_name().to_str().map(String::from)).collect();
+    let mut v: Vec<String> = crate::storage::read_dir(projects_dir()).into_iter().flatten().filter(|p| crate::storage::is_dir(p)).filter_map(|p| p.file_name()?.to_str().map(String::from)).collect();
     v.sort_by_key(|n| n.to_lowercase());
     v
 }

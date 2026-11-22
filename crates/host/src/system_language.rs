@@ -1,5 +1,6 @@
 //! The language the system shows its own texts in (Windows: the user's display language; other
-//! systems: the locale variables, and on macOS the user's preferred languages).
+//! systems: the locale variables, and on macOS the user's preferred languages; in the browser, its
+//! languages).
 use i18n::Lang;
 
 /// The system's language when it is one of `Lang::ALL`, English otherwise.
@@ -75,7 +76,13 @@ mod imp {
         tags
     }
 
-    #[cfg(not(target_os = "macos"))]
+    /// The browser's languages.
+    #[cfg(target_arch = "wasm32")]
+    fn preferred_languages() -> Vec<String> {
+        crate::web::text(crate::web::Text::Languages).unwrap_or_default().lines().map(String::from).collect()
+    }
+
+    #[cfg(not(any(target_os = "macos", target_arch = "wasm32")))]
     fn preferred_languages() -> Vec<String> {
         Vec::new()
     }
