@@ -1,6 +1,7 @@
-//! The desktop's own file dialog off Windows (the programs' Windows adapters call Win32 directly).
-//! On Linux it goes through the XDG desktop portal, with zenity when there is no portal; neither
-//! says whether the person cancelled or no dialog could open, so `available` is asked first.
+//! The system's own file dialog off Windows (the programs' Windows adapters call Win32 directly).
+//! On macOS the Open and Save panels. On Linux the XDG desktop portal, with zenity when there is no
+//! portal; neither says whether the person cancelled or no dialog could open, so `available` is
+//! asked first.
 use i18n::Lang;
 use std::path::{Path, PathBuf};
 
@@ -29,10 +30,10 @@ pub fn unavailable_text(lang: Lang) -> &'static str {
     crate::texts::tr(lang, "No file dialog is available on this computer: install xdg-desktop-portal (with the one of your desktop) or zenity. The game also takes the cartridge file as its argument.")
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 mod imp {
     use super::Request;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
 
     pub fn ask(r: &Request) -> Option<PathBuf> {
         let _ = std::fs::create_dir_all(r.dir);
@@ -48,8 +49,15 @@ mod imp {
         if path.extension().is_some_and(|e| e.eq_ignore_ascii_case(ext)) { path } else { PathBuf::from(format!("{}.{ext}", path.display())) }
     }
 
-    /// zenity on the PATH, or a session bus with the portal's service installed.
+    #[cfg(target_os = "macos")]
     pub fn available() -> bool {
+        true
+    }
+
+    /// zenity on the PATH, or a session bus with the portal's service installed.
+    #[cfg(target_os = "linux")]
+    pub fn available() -> bool {
+        use std::path::Path;
         let on_path = |exe: &str| std::env::var_os("PATH").is_some_and(|p| std::env::split_paths(&p).any(|d| d.join(exe).is_file()));
         let bus = std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_some() || std::env::var_os("XDG_RUNTIME_DIR").is_some_and(|d| Path::new(&d).join("bus").exists());
         let data_dirs = std::env::var("XDG_DATA_DIRS").ok().filter(|d| !d.is_empty()).unwrap_or_else(|| "/usr/local/share:/usr/share".into());
@@ -60,6 +68,7 @@ mod imp {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use std::path::Path;
 
         #[test]
         fn saved_files_get_their_extension() {
@@ -69,7 +78,7 @@ mod imp {
     }
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
 mod imp {
     use super::Request;
     use std::path::PathBuf;

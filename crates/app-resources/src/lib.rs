@@ -9,6 +9,9 @@
 //! A missing PNG is a warning, not an error: the program builds with the system's icon.
 use std::path::{Path, PathBuf};
 
+/// The copyright line of the executables' version details (and of the macOS bundles, `xtask`).
+pub const COPYRIGHT: &str = "Copyright 2026 ogueta93 (https://github.com/ogueta93) and the SML2 6GC authors. GPL-3.0-or-later. No game included; not affiliated with or endorsed by Nintendo.";
+
 /// The sizes the `.ico` holds.
 const ICO_SIZES: [u32; 6] = [16, 24, 32, 48, 64, 256];
 
@@ -148,7 +151,7 @@ fn windows_resource(out: &Path, program: &str, description: &str, image: Option<
     res.set("FileDescription", description);
     res.set("OriginalFilename", &format!("{program}.exe"));
     res.set("InternalName", program);
-    res.set("LegalCopyright", "Copyright 2026 ogueta93 (https://github.com/ogueta93) and the SML2 6GC authors. GPL-3.0-or-later. No game included; not affiliated with or endorsed by Nintendo.");
+    res.set("LegalCopyright", COPYRIGHT);
     if let Err(e) = res.compile() {
         println!("cargo:warning={program}: no icon or version details ({e})");
     }

@@ -47,7 +47,7 @@ dependencies = [
 
 [[package]]
 name = "app-resources"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "png",
  "winresource",
@@ -133,7 +133,7 @@ checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
 name = "cart-model"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "gb-core",
 ]
@@ -308,7 +308,7 @@ dependencies = [
 
 [[package]]
 name = "editor"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "app-resources",
  "cart-model",
@@ -395,7 +395,7 @@ dependencies = [
 
 [[package]]
 name = "fonts"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "i18n",
 ]
@@ -426,7 +426,7 @@ dependencies = [
 
 [[package]]
 name = "game"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "app-resources",
  "cart-model",
@@ -443,7 +443,7 @@ dependencies = [
 
 [[package]]
 name = "gb-core"
-version = "1.1.0"
+version = "1.2.0"
 
 [[package]]
 name = "getrandom"
@@ -521,8 +521,9 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 
 [[package]]
 name = "host"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
+ "core-foundation-sys",
  "gb-core",
  "i18n",
  "png",
@@ -533,7 +534,7 @@ dependencies = [
 
 [[package]]
 name = "i18n"
-version = "1.1.0"
+version = "1.2.0"
 
 [[package]]
 name = "image"
@@ -1046,7 +1047,7 @@ dependencies = [
 
 [[package]]
 name = "project-model"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cart-model",
  "host",
@@ -1110,7 +1111,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "regression"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cart-model",
  "gb-core",
@@ -1119,7 +1120,7 @@ dependencies = [
 
 [[package]]
 name = "research"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "cart-model",
  "gb-core",
@@ -1706,8 +1707,9 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
+ "app-resources",
  "flate2",
  "object",
  "png",

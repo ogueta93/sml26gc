@@ -1,11 +1,13 @@
 //! Every keyboard shortcut of the editor: the keys that run each panel action and the text
-//! its button shows, from one table.
+//! its button shows, from one table. The table writes Ctrl for the system's shortcut key
+//! (`host::shortcut_key`: Cmd on macOS), which reads and shows the one of the system.
 //!
 //! Keys are read by their place on the keyboard (US layout), so only letters, comma, period
 //! and named keys are used: they sit in the same place on a Spanish keyboard. Plus and minus
 //! accept the keys that carry them on both layouts and the keypad.
 use macroquad::prelude::{is_key_down, KeyCode};
 use super::inset::is_key_pressed;
+use host::shortcut_key::{ShortcutKey, SHORTCUT_KEY};
 
 /// Where the editor is: which keys mean what depends on it.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -198,21 +200,56 @@ pub const TABLE: &[Shortcut] = &[
     s(DeleteZone, WORLD, true, false, &[K::Delete], "Ctrl+Del"),
 ];
 
+/// Is the system's shortcut key held (Ctrl, or Cmd on macOS)?
+pub fn command_down() -> bool {
+    match SHORTCUT_KEY {
+        ShortcutKey::Control => is_key_down(K::LeftControl) || is_key_down(K::RightControl),
+        ShortcutKey::Command => is_key_down(K::LeftSuper) || is_key_down(K::RightSuper),
+    }
+}
+
+/// The modifier keys, which the system's dialogs would keep from the editor while held.
+pub const MODIFIERS: [KeyCode; 8] = [K::LeftControl, K::RightControl, K::LeftSuper, K::RightSuper, K::LeftShift, K::RightShift, K::LeftAlt, K::RightAlt];
+
 /// The actions whose keys went down this frame.
 pub fn pressed(ctx: Ctx) -> Vec<Action> {
-    let ctrl = is_key_down(K::LeftControl) || is_key_down(K::RightControl);
+    let ctrl = command_down();
     let shift = is_key_down(K::LeftShift) || is_key_down(K::RightShift);
     TABLE.iter().filter(|s| s.ctxs.contains(&ctx) && s.ctrl == ctrl && s.shift == shift && s.keys.iter().any(|&k| is_key_pressed(k))).map(|s| s.action).collect()
 }
 
 /// The keys of an action, as its button shows them.
 pub fn keys(action: Action) -> &'static str {
-    TABLE.iter().find(|s| s.action == action).map(|s| s.label).unwrap_or("")
+    static LABELS: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    let labels = LABELS.get_or_init(|| TABLE.iter().map(|s| with_shortcut_key(s.label, SHORTCUT_KEY)).collect());
+    TABLE.iter().position(|s| s.action == action).map_or("", |i| &labels[i])
+}
+
+/// `text` (a label or a message of the catalogue) with the system's shortcut key where it
+/// says Ctrl (Strg in German).
+pub fn on_this_system(text: &str) -> String {
+    with_shortcut_key(text, SHORTCUT_KEY)
+}
+
+fn with_shortcut_key(text: &str, key: ShortcutKey) -> String {
+    match key {
+        ShortcutKey::Control => text.to_string(),
+        ShortcutKey::Command => text.replace("Ctrl+", "Cmd+").replace("Strg+", "Cmd+"),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_shortcut_key_in_labels_and_messages() {
+        assert_eq!(with_shortcut_key("Ctrl+Shift+E", ShortcutKey::Command), "Cmd+Shift+E");
+        assert_eq!(with_shortcut_key("(Strg+Z holt sie zurueck).", ShortcutKey::Command), "(Cmd+Z holt sie zurueck).");
+        assert_eq!(with_shortcut_key("Ctrl+Z", ShortcutKey::Control), "Ctrl+Z");
+        assert_eq!(keys(Action::Save), format!("{}+S", SHORTCUT_KEY.label()));
+        assert_eq!(keys(Action::Play), "F5");
+    }
 
     #[test]
     fn no_combination_does_two_things_and_panning_keys_stay_free() {

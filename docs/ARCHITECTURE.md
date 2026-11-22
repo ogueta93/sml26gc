@@ -39,18 +39,26 @@ with ports and adapters around them. Behaviour is guarded by the golden fingerpr
 ## Platforms and packaging
 
 What depends on the operating system (window menus, file dialogs, the system language, the
-console, starting the other program, icons and version details) is only in `adapters/` folders,
-`crates/host`, `crates/app-resources`, build scripts and `xtask/`, each piece with a Windows
-branch and one for other systems; `crates/host/tests/platform_boundary.rs` checks it.
+shortcut key, the console, starting the other program, icons and version details) is only in
+`adapters/` folders, `crates/host`, `crates/app-resources`, build scripts and `xtask/`, each piece
+with a Windows branch and one for other systems (with a macOS one where it differs);
+`crates/host/tests/platform_boundary.rs` checks it.
 Every data file lives in `host::paths::data_dir()`: the executables' folder (the programs are
-portable), or `$XDG_DATA_HOME/sml26gc` when the file `installed` sits beside the executables (only
-the Linux `.deb` puts it there). `exe_dir()` only finds the other program.
+portable), `$XDG_DATA_HOME/sml26gc` when the file `installed` sits beside the executables (only
+the Linux `.deb` puts it there), or `~/Library/Application Support/sml26gc` when the executable is
+in a macOS app bundle (`<name>.app/Contents/MacOS/`). `game_exe()`/`editor_exe()` find the other
+program beside the running one, or in its app bundle beside this one's
+(`GAME_BUNDLE`/`EDITOR_BUNDLE`, the names `xtask/src/macos.rs` gives them).
 
 - File dialogs: Win32 in the programs' adapters (`game/src/adapters/system_window.rs`,
-  `editor/src/adapters/file_dialogs.rs`); elsewhere `host::file_dialog` (the desktop portal or
-  zenity through `rfd`), which also says when no dialog can open (`FileDialogs::available`).
-- The system language: the Windows UI language, or `LC_ALL` / `LC_MESSAGES` / `LANG`
-  (`host::system_language`).
+  `editor/src/adapters/file_dialogs.rs`); elsewhere `host::file_dialog` through `rfd` (macOS: the
+  system's panels; Linux: the desktop portal or zenity), which also says when no dialog can open
+  (`FileDialogs::available`, always true on macOS).
+- The system language: the Windows UI language, or `LC_ALL` / `LC_MESSAGES` / (on macOS, the
+  user's preferred languages through CoreFoundation) / `LANG` (`host::system_language`).
+- The shortcut key: Ctrl, or Cmd on macOS (`host::shortcut_key`); the editor's `ui::shortcuts`
+  reads that key and writes its name where its table and messages say Ctrl. The game's keyboard
+  adapter takes Cmd+Ctrl+F as F11 on macOS, which keeps F11 for itself.
 - The editor's menu bar: the Win32 one (`editor/src/adapters/menu_bar.rs`) when the system gives
   the window one, else `ui::drawn_menu_bar` along the top of the window. The `MenuBar` port says
   its `height` and reads its `input` before the views; `ui::inset` moves the views below it (a
@@ -64,11 +72,13 @@ were started from. The product's name, short id, source address and the `.deb`'s
 
 `cargo xtask package TARGET` builds `game` and `editor` with the `dist` profile for the target's
 triple: on Windows into `target/<triple>/dist/`; for Linux in a Debian 11 container
-(`packaging/linux/Dockerfile`, `xtask/src/linux.rs`) into `target/linux-container/`. It checks
-the executables' libraries (Windows: no C runtime DLLs; Linux: only the allowed ones, glibc 2.31
-at most), assembles `dist/TARGET/sml26gc/` (executables, `packaging/` texts, font licences, the
-third-party crates' licences from `cargo metadata`) and writes the target's outputs: the zip, or
-the `.tar.gz` and the `.deb`. A new platform is one entry of `TARGETS` in `xtask/src/main.rs` and
+(`packaging/linux/Dockerfile`, `xtask/src/linux.rs`) into `target/linux-container/`; for macOS
+for both Apple triples, joined by `lipo` into `target/universal-apple-darwin/dist/`
+(`xtask/src/macos.rs`). It checks the executables' libraries (Windows: no C runtime DLLs; Linux:
+only the allowed ones, glibc 2.31 at most; macOS: only the system's, both architectures, macOS 11
+at most), assembles `dist/TARGET/sml26gc/` (executables, on macOS in their signed app bundles,
+`packaging/` texts, font licences, the third-party crates' licences from `cargo metadata`) and
+writes the target's outputs: the zip, the `.tar.gz` and the `.deb`, or the macOS zip (`ditto`). A new platform is one entry of `TARGETS` in `xtask/src/main.rs` and
 its adapters' branches.
 
 ## `gb-core`

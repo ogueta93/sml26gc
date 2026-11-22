@@ -85,3 +85,14 @@ The supported cartridge SHALL be named in the editor's texts with its revision, 
 #### Scenario: Another revision
 - **WHEN** a file of revision 0 of Super Mario Land 2 - 6 Golden Coins (USA, Europe) is chosen
 - **THEN** it is refused, and the message names Super Mario Land 2 - 6 Golden Coins (USA, Europe) (Rev 1) and says other revisions are refused
+
+### Requirement: Saved objects in the game's order
+Saving SHALL store every level's objects sorted left to right by their x, the order the game walks its lists in, whatever order they were placed in; objects at the same x SHALL keep their order. A level whose objects did not change SHALL keep the same bytes.
+
+#### Scenario: An object placed to the left of others
+- **WHEN** a mushroom is placed in level 00 at x 272, to the left of an object at x 472 in the same 256-pixel page, the project is saved and the level is played
+- **THEN** the mushroom comes to life when Mario reaches it
+
+#### Scenario: An unchanged level
+- **WHEN** the project is saved with no change to level 01's objects
+- **THEN** level 01's object list has the same bytes as in the original cartridge

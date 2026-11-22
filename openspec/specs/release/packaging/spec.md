@@ -7,7 +7,7 @@ on a supported platform, with only what the programs need and the notices they m
 ## Requirements
 
 ### Requirement: One command builds a platform's package
-A single command run from the repository, naming a platform target (`windows-x64` or `linux-x64`), SHALL build the editor and the game for that target in release, assemble the package folder `dist/<target>/sml26gc/` from an empty folder each time, and write the target's packages (see "Each platform's packages"). An unknown target SHALL stop with a message listing the known ones, and nothing SHALL be written.
+A single command run from the repository, naming a platform target (`windows-x64`, `linux-x64` or `macos-universal`), SHALL build the editor and the game for that target in release, assemble the package folder `dist/<target>/sml26gc/` from an empty folder each time, and write the target's packages (see "Each platform's packages"). An unknown target SHALL stop with a message listing the known ones, and nothing SHALL be written.
 
 #### Scenario: Building the Windows package
 - **WHEN** the developer runs the package command for `windows-x64`
@@ -17,12 +17,16 @@ A single command run from the repository, naming a platform target (`windows-x64
 - **WHEN** the developer runs the package command for `linux-x64` on Linux
 - **THEN** `dist/linux-x64/sml26gc/` holds the editor and the game built in release, `dist/sml26gc-<version>-linux-x64.tar.gz` holds that folder with both programs executable, and `dist/sml26gc_<version>_amd64.deb` installs them as `release/linux-install` says
 
+#### Scenario: Building the macOS package
+- **WHEN** the developer runs the package command for `macos-universal` on a Mac
+- **THEN** `dist/macos-universal/sml26gc/` holds the two app bundles built in release, and `dist/sml26gc-<version>-macos-universal.zip` holds that folder with the bundles intact (executable, signed)
+
 #### Scenario: An unknown target
 - **WHEN** the package command is run for `amiga`
 - **THEN** it says which targets it knows and writes nothing
 
 ### Requirement: The package holds only what runs
-The package folder SHALL hold exactly: the game and editor executables, a read-me, the cartridge notice, the licence text, the legal notice, the changelog, the user manuals of the game and the editor, and the licences folder. It SHALL NOT hold source files, build output (debug symbols, intermediate files, other binaries such as the research tool), cartridges or anything made from one, projects, saves, settings files, caches or exports.
+The package folder SHALL hold exactly: the game and editor executables (on macOS, inside their two app bundles), a read-me, the cartridge notice, the licence text, the legal notice, the changelog, the user manuals of the game and the editor, and the licences folder. It SHALL NOT hold source files, build output (debug symbols, intermediate files, other binaries such as the research tool), cartridges or anything made from one, projects, saves, settings files, caches or exports.
 
 #### Scenario: The developer's own files stay out
 - **WHEN** the package is built on a computer whose `target/release` holds projects, saves, `settings.cfg`, `editor.cfg`, `base_cartridge.txt` and `.pdb` files
@@ -35,6 +39,10 @@ The package folder SHALL hold exactly: the game and editor executables, a read-m
 #### Scenario: Listing the Linux package
 - **WHEN** the Linux package folder is listed
 - **THEN** it holds `sml26gc`, `sml26gc_editor`, `README.txt`, `NO-CARTRIDGE.txt`, `LICENSE.txt`, `LEGAL.md`, `CHANGELOG.md`, `manuals/` (`GAME.md`, `EDITOR.md`) and `licenses/`, and nothing else
+
+#### Scenario: Listing the macOS package
+- **WHEN** the macOS package folder is listed
+- **THEN** it holds `SML2 6GC.app`, `SML2 6GC Editor.app`, `README.txt`, `NO-CARTRIDGE.txt`, `LICENSE.txt`, `LEGAL.md`, `CHANGELOG.md`, `manuals/` (`GAME.md`, `EDITOR.md`) and `licenses/`, and nothing else; each bundle holds only its executable, `Info.plist`, its icon and its signature
 
 ### Requirement: No cartridge is included
 The package SHALL NOT contain any cartridge or data taken from one, and SHALL say so: `NO-CARTRIDGE.txt` (and the read-me) SHALL state that the programs include no game, that the person uses a cartridge file from their own backup of a cartridge they own, that the authors take no responsibility for where it was obtained, and that the product is not affiliated with or endorsed by Nintendo. The programs SHALL keep asking for the cartridge on first run, as they do now.
@@ -89,6 +97,10 @@ Each platform's read-me SHALL say what a computer needs to run the programs and 
 #### Scenario: What the Linux read-me covers
 - **WHEN** the Linux package's read-me is read
 - **THEN** it gives the oldest glibc (2.31) and example distributions (Debian 11, Ubuntu 20.04 and later, Fedora, Mint, Arch), the libraries the programs use with the Debian/Ubuntu and Fedora packages that provide them, the graphics driver (OpenGL 3.1, at least 2.1), the optional sound device, controller and file dialog (desktop portal or zenity), how to unpack and start the programs from a terminal or the file manager, how to install the `.deb` instead, and what to do for a program that is not executable, a missing library, a missing or old graphics driver, a folder that cannot be written, no file dialog, a refused cartridge, no sound and a controller that does nothing (access to `/dev/input`)
+
+#### Scenario: What the macOS read-me covers
+- **WHEN** the macOS package's read-me is read
+- **THEN** it gives the oldest macOS (11 Big Sur), that Apple Silicon and Intel Macs are both supported and which Macs that means, how to unpack the zip and move both apps to Applications or any one folder, how to open an unsigned app the first time (Open Anyway in Privacy & Security, or `xattr -dr com.apple.quarantine`), where the files are kept and how to back them up, the keys (Cmd in the editor; F11 or Cmd+Ctrl+F for full screen, Fn with function keys), how to see a program's messages from Terminal, and what to do for an app macOS refuses or calls damaged, an app that needs a newer macOS, Play that does not start the game, a refused cartridge, no sound and a controller that does nothing
 
 ### Requirement: Documentation for players and developers
 The repository SHALL document, each in one place: the game's and the editor's user manuals, how to prepare a computer to develop on each supported platform (the language, tools and system libraries and how to install them), how to build, run, check and package on each, and how and why the emulator and the editor were made. The README SHALL describe both programs briefly, name the supported platforms and link to each document.
@@ -159,3 +171,36 @@ The package command for `linux-x64` SHALL build the game and the editor inside a
 #### Scenario: A new Rust version
 - **WHEN** the workspace's `rust-version` is raised and the Linux package is built
 - **THEN** the build image is rebuilt with that Rust before building
+
+### Requirement: The macOS bundles carry their icons and version
+On macOS, each app bundle SHALL show its own icon in the Finder and the Dock, made from the same PNG as on Windows (`assets/icons/sml26gc.png`, `assets/icons/sml26gc_editor.png`), and its Get Info window SHALL show the version and the copyright line.
+
+#### Scenario: The macOS bundles' icons
+- **WHEN** the macOS package is unpacked in the Finder
+- **THEN** `SML2 6GC.app` and `SML2 6GC Editor.app` each show their own icon, and Get Info shows the version
+
+### Requirement: The macOS package's zip
+The macOS target SHALL write `dist/sml26gc-<version>-macos-universal.zip` holding the package folder, made so that the bundles keep their executable marks and signatures when unpacked by the Finder.
+
+#### Scenario: Unpacking the macOS zip
+- **WHEN** the macOS zip is double-clicked in the Finder
+- **THEN** it gives `sml26gc/` with both app bundles, whose signatures `codesign --verify` accepts
+
+### Requirement: The macOS executables are checked
+When building the macOS package, the package command SHALL build each program for Apple Silicon and Intel with macOS 11 as its minimum and join them into one universal executable. It SHALL stop, naming the executable and what it found, if an architecture is missing, if an architecture's minimum macOS is newer than 11.0 (the limit, defined once in the target), or if an executable links a library outside `/usr/lib/` and `/System/Library/Frameworks/`. It SHALL print the minimum macOS it found.
+
+#### Scenario: The minimum version
+- **WHEN** the macOS package is built on the newest macOS
+- **THEN** the command prints a minimum of macOS 11.0 for both architectures and writes the zip
+
+#### Scenario: A library from Homebrew
+- **WHEN** a dependency makes the game link `/opt/homebrew/lib/libSDL2.dylib` and the macOS package is built
+- **THEN** the command stops, names that library and the executable that needs it, and writes no zip
+
+#### Scenario: A newer minimum
+- **WHEN** the executables were linked with macOS 14 as their minimum
+- **THEN** the command stops, says they need macOS 14.0 where 11.0 is the limit, and writes no zip
+
+#### Scenario: Packaging off a Mac
+- **WHEN** the package command for `macos-universal` is run on Linux
+- **THEN** it says the macOS package is built on macOS and writes nothing

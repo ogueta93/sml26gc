@@ -10,8 +10,10 @@
 //! changelog, the manuals (`docs/GAME.md`, `docs/EDITOR.md`) and the other licences, and nothing
 //! else: it is built into its own folder under `target/`, apart from the developer's
 //! `target/release` and the files the programs write there.
+mod icons;
 mod licences;
 mod linux;
+mod macos;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -28,6 +30,7 @@ struct Target {
     crlf: bool,
     readme: &'static str,
     build: Build,
+    layout: Layout,
     outputs: &'static [Output],
 }
 
@@ -37,6 +40,9 @@ enum Imports {
     Deny(&'static [&'static str]),
     /// Only these, and no glibc newer than `glibc` (the read-me names them all).
     Allow { libraries: &'static [&'static str], glibc: (u32, u32) },
+    /// Only the system's, every architecture of `Build::Universal`, and no minimum macOS newer
+    /// than `macos`, which they are built for.
+    MacOs { macos: (u32, u32) },
 }
 
 enum Build {
@@ -44,16 +50,27 @@ enum Build {
     Here,
     /// `cargo build` in the Linux build container (`packaging/linux/Dockerfile`).
     Container,
+    /// `cargo build` on this computer for each of these triples, joined by `lipo`.
+    Universal(&'static [&'static str]),
+}
+
+/// Where the executables go in the package folder.
+enum Layout {
+    Flat,
+    /// Each in its macOS app bundle.
+    AppBundles,
 }
 
 enum Output {
     Zip,
     TarGz,
     Deb,
+    /// The zip made by `ditto`, which keeps the app bundles' modes and signatures.
+    Ditto,
 }
 
 const TARGETS: &[Target] = &[
-    Target { name: "windows-x64", triple: "x86_64-pc-windows-msvc", host_os: "windows", suffix: ".exe", imports: Imports::Deny(&["vcruntime", "api-ms-win-crt-", "msvcp"]), crlf: true, readme: "windows/README.txt", build: Build::Here, outputs: &[Output::Zip] },
+    Target { name: "windows-x64", triple: "x86_64-pc-windows-msvc", host_os: "windows", suffix: ".exe", imports: Imports::Deny(&["vcruntime", "api-ms-win-crt-", "msvcp"]), crlf: true, readme: "windows/README.txt", build: Build::Here, layout: Layout::Flat, outputs: &[Output::Zip] },
     Target {
         name: "linux-x64",
         triple: "x86_64-unknown-linux-gnu",
@@ -63,7 +80,20 @@ const TARGETS: &[Target] = &[
         crlf: false,
         readme: "linux/README.txt",
         build: Build::Container,
+        layout: Layout::Flat,
         outputs: &[Output::TarGz, Output::Deb],
+    },
+    Target {
+        name: "macos-universal",
+        triple: "aarch64-apple-darwin",
+        host_os: "macos",
+        suffix: "",
+        imports: Imports::MacOs { macos: (11, 0) },
+        crlf: false,
+        readme: "macos/README.txt",
+        build: Build::Universal(&["aarch64-apple-darwin", "x86_64-apple-darwin"]),
+        layout: Layout::AppBundles,
+        outputs: &[Output::Ditto],
     },
 ];
 
@@ -132,6 +162,8 @@ struct Fill {
     programs: Vec<String>,
     /// The oldest glibc the Linux executables need, as `2.31`.
     glibc: Option<String>,
+    /// The oldest macOS the macOS executables run on, as `11.0`.
+    macos: Option<String>,
     version: String,
     crlf: bool,
 }
@@ -145,7 +177,8 @@ impl Fill {
             .replace("{editor}", &self.programs[1])
             .replace("{source}", env!("PRODUCT_SOURCE"))
             .replace("{maintainer}", env!("PRODUCT_MAINTAINER"))
-            .replace("{glibc}", self.glibc.as_deref().unwrap_or("?"));
+            .replace("{glibc}", self.glibc.as_deref().unwrap_or("?"))
+            .replace("{macos}", self.macos.as_deref().unwrap_or("?"));
         if self.crlf { text.replace("\r\n", "\n").replace('\n', "\r\n") } else { text }
     }
 }
@@ -160,6 +193,11 @@ fn package(t: &Target) -> Result<(), String> {
     let game = packages.iter().find(|p| p["name"] == PROGRAMS[0]).ok_or("no game package")?;
     let version = game["version"].as_str().ok_or("no game version")?.to_string();
     let target_dir = PathBuf::from(meta["target_directory"].as_str().ok_or("cargo metadata: no target directory")?);
+    let mut bins = Vec::new();
+    for p in PROGRAMS {
+        let bin = packages.iter().find(|q| q["name"] == p).and_then(|q| q["targets"].as_array()?.iter().find(|t| t["kind"][0] == "bin")?["name"].as_str()).ok_or(format!("no binary in {p}"))?;
+        bins.push(bin.to_string());
+    }
     let built = match t.build {
         Build::Here => {
             let mut build = cargo();
@@ -174,6 +212,10 @@ fn package(t: &Target) -> Result<(), String> {
             let rust = game["rust_version"].as_str().ok_or("no rust-version in the workspace")?;
             linux::build_in_container(&root(), rust, t.triple, &PROGRAMS)?
         }
+        Build::Universal(triples) => {
+            let Imports::MacOs { macos } = t.imports else { return Err(format!("{}: a universal build needs its minimum macOS", t.name)) };
+            macos::build_universal(&target_dir, triples, &PROGRAMS, &bins, macos)?
+        }
     };
 
     let folder = root().join("dist").join(t.name).join(id);
@@ -185,21 +227,30 @@ fn package(t: &Target) -> Result<(), String> {
     }
 
     let mut programs = Vec::new();
-    let mut glibc = None;
-    for p in PROGRAMS {
-        let bin = packages.iter().find(|q| q["name"] == p).and_then(|q| q["targets"].as_array()?.iter().find(|t| t["kind"][0] == "bin")?["name"].as_str()).ok_or(format!("no binary in {p}"))?;
+    let (mut glibc, mut macos) = (None, None);
+    for bin in &bins {
         let file = format!("{bin}{}", t.suffix);
         let from = built.join(&file);
         match t.imports {
             Imports::Deny(denied) => check_imports(&from, denied)?,
             Imports::Allow { libraries, glibc: limit } => glibc = glibc.max(Some(linux::check_libraries(&from, libraries, limit)?)),
+            Imports::MacOs { macos: limit } => {
+                let Build::Universal(triples) = t.build else { return Err(format!("{}: the macOS check needs a universal build", t.name)) };
+                macos = macos.max(Some(macos::check(&from, triples, limit)?));
+            }
         }
         std::fs::copy(&from, folder.join(&file)).map_err(|e| format!("{}: {e}", from.display()))?;
         programs.push(file);
     }
-    let fill = Fill { programs, glibc: glibc.map(|(a, b)| format!("{a}.{b}")), version: version.clone(), crlf: t.crlf };
+    let fill = Fill { programs, glibc: glibc.map(|(a, b)| format!("{a}.{b}")), macos: macos.map(|(a, b)| format!("{a}.{b}")), version: version.clone(), crlf: t.crlf };
     if let Some(g) = &fill.glibc {
         println!("glibc:   the executables need {g} or newer");
+    }
+    if let Some(m) = &fill.macos {
+        println!("macOS:   the executables need macOS {m} or newer");
+    }
+    if let (Layout::AppBundles, Imports::MacOs { macos: limit }) = (&t.layout, &t.imports) {
+        macos::bundles(&root(), &folder, &fill, *limit)?;
     }
 
     let packaging = root().join("packaging");
@@ -231,6 +282,11 @@ fn package(t: &Target) -> Result<(), String> {
                 tar
             }
             Output::Deb => linux::deb(&root(), &folder, &fill)?,
+            Output::Ditto => {
+                let zip = root().join("dist").join(format!("{id}-{version}-{}.zip", t.name));
+                macos::ditto(&folder, &zip)?;
+                zip
+            }
         };
         println!("written: {}", file.display());
     }

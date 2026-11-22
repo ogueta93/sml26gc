@@ -726,7 +726,7 @@ impl Editor {
             self.show_map(OnMap::World);
         }
         let m: Vec2 = mouse_position().into();
-        let ctrl = is_key_down(KeyCode::LeftControl) || is_key_down(KeyCode::RightControl);
+        let ctrl = super::shortcuts::command_down();
         let (space, _, _) = self.navigate(m, ctrl, self.map_px());
         if self.pan.is_some() || space {
             return;

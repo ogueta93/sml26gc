@@ -140,7 +140,8 @@ pub fn space(rom: &[u8], original: &[u8], lists: &[Vec<Obj>]) -> (usize, usize) 
 }
 
 /// Write every level's list back, one after another in the original lists' space, sorted
-/// left to right (the order the game keeps them in), and point the table at them.
+/// left to right by x (the order the game walks them in; its own lists are), and point the
+/// table at them.
 pub fn store(rom: &mut [u8], original: &[u8], lists: &[Vec<Obj>]) -> Result<ObjectsUsage, CartError> {
     let (start, capacity) = region_for(rom, original);
     let (need, _) = space(rom, original, lists);
@@ -158,8 +159,7 @@ pub fn store(rom: &mut [u8], original: &[u8], lists: &[Vec<Obj>]) -> Result<Obje
         } else {
             let a = 0x4000 + (at - b * BANK_SIZE) as u16;
             let mut objs = lists[l].clone();
-            // The game's lists go page by page (256 px); keep their own order inside a page.
-            objs.sort_by_key(|o| o.x / 256);
+            objs.sort_by_key(|o| o.x);
             for o in &objs {
                 rom[at..at + 3].copy_from_slice(&o.to_bytes());
                 at += 3;
@@ -197,5 +197,22 @@ mod tests {
         let [b, c, d] = o.to_bytes();
         let back = Obj::from_bytes(b, c, d);
         assert_eq!((back.x, back.y, back.kind), (4088, 1016, 0x7F));
+    }
+
+    #[test]
+    fn lists_are_stored_left_to_right() {
+        let mut original = vec![0u8; 0x80000];
+        let at = 3 * BANK_SIZE + 0x1000;
+        let tbl = table(&original);
+        for l in 0..LEVELS {
+            set_word(&mut original, tbl + l * 2, 0x5000);
+        }
+        original[at + 9] = 0xFF;
+        let o = |x| Obj { x, y: 448, kind: 0x1B, flag: false };
+        let mut lists = vec![vec![o(224), o(472), o(272)]; LEVELS];
+        let mut rom = original.clone();
+        store(&mut rom, &original, &lists).unwrap();
+        lists[0].sort_by_key(|o| o.x);
+        assert_eq!(read(&rom, 0).0, lists[0]);
     }
 }

@@ -42,7 +42,8 @@ Two editors, each with a side panel:
 - **Zone editor** (F2, Zones): the world map and the zones, laid out the same way: map picker,
   toolbar, Go to Mario's start, Picture / Points.
 
-Every button has a shortcut, shown in its tooltip. Ctrl+Z / Ctrl+Y undo and redo every change in
+Every button has a shortcut, shown in its tooltip. On macOS, Cmd takes the place of Ctrl in every
+shortcut (Cmd+S, Cmd+Z), and the editor shows it so. Ctrl+Z / Ctrl+Y undo and redo every change in
 the order made, whatever the mode or tab. Ctrl+S saves the project's cartridge. Messages say
 their kind: done in green (+), warnings in orange (!), errors in red (x). A text cut short
 (ending in "..") shows whole in a tooltip. Palettes zoom with their - + buttons or Ctrl - /
@@ -52,7 +53,7 @@ wheel or a right-drag.
 The Language menu: English, Spanish, Japanese, Portuguese, French, German, Italian, Indonesian,
 Russian, Simplified Chinese or Korean; Automatic follows the system's. Kept in `editor.cfg`.
 
-The File, Tools and Language menus are in the window's menu bar. On Linux the editor draws it
+The File, Tools and Language menus are in the window's menu bar. On Linux and macOS the editor draws it
 along the top of its window: a click on a title opens its menu (then the pointer moves between
 menus), a click on an entry chooses it, and a click elsewhere or Esc closes it.
 
@@ -150,4 +151,5 @@ the bottom right shows how far it is. Tools, Capture the object pictures again s
 
 All beside the program: `editor.cfg` (language, zoom, listening volume, test game values), the
 projects (`editor/projects/`), `exports/` and `cache/`; `base_cartridge.txt` is shared with the
-game. Installed on Linux from the `.deb`, they are in `~/.local/share/sml26gc/` instead.
+game. Installed on Linux from the `.deb`, they are in `~/.local/share/sml26gc/` instead; on macOS,
+in `~/Library/Application Support/sml26gc/`, shared by both apps.

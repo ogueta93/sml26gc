@@ -10,6 +10,7 @@ pub mod png_out;
 pub mod projects;
 pub mod rom_locator;
 pub mod settings_file;
+pub mod shortcut_key;
 pub mod system_language;
 pub mod texts;
 

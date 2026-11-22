@@ -199,3 +199,18 @@ does, and Esc SHALL close it.
 #### Scenario: Catalogue from the keyboard
 - **WHEN** the level editor is shown and the user presses F3
 - **THEN** the object catalogue opens
+
+### Requirement: Cmd on macOS
+On macOS, every shortcut written with Ctrl SHALL be made with Cmd instead (Cmd+S saves, Cmd+Z undoes, Cmd+E exports), Ctrl together with the mouse wheel SHALL be Cmd with the wheel, and every place the editor shows a shortcut (menus, buttons, tooltips, messages) SHALL write Cmd where the other systems write Ctrl. Ctrl alone SHALL not make those shortcuts on macOS. The other systems keep Ctrl.
+
+#### Scenario: Saving on a Mac
+- **WHEN** the user presses Cmd+S in the level editor on macOS
+- **THEN** the project is saved, as Ctrl+S does on Windows
+
+#### Scenario: Ctrl on a Mac
+- **WHEN** the user presses Ctrl+S in the level editor on macOS
+- **THEN** nothing is saved
+
+#### Scenario: Labels on a Mac
+- **WHEN** the user points at the Undo button on macOS
+- **THEN** its tooltip shows Cmd+Z

@@ -421,7 +421,7 @@ impl Editor {
             return;
         }
         let levels: Vec<String> = dropped.iter().map(|l| format!("{l:02}")).collect();
-        self.status = format!("{} {} ({objects} {}). {}", tr(lang, "Objects of the other object catalogue taken out of the enemies of levels"), levels.join(", "), tr(lang, "placed"), tr(lang, "A level plays its own catalogue's objects only; Ctrl+Z brings them back."));
+        self.status = format!("{} {} ({objects} {}). {}", tr(lang, "Objects of the other object catalogue taken out of the enemies of levels"), levels.join(", "), tr(lang, "placed"), shortcuts::on_this_system(tr(lang, "A level plays its own catalogue's objects only; Ctrl+Z brings them back.")));
         self.mark(Severity::Warning);
     }
 

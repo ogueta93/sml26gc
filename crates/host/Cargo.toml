@@ -18,3 +18,8 @@ windows-sys.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 rfd.workspace = true
+
+# The macOS Open and Save panels; the user's preferred languages (CoreFoundation).
+[target.'cfg(target_os = "macos")'.dependencies]
+rfd.workspace = true
+core-foundation-sys = "0.8"

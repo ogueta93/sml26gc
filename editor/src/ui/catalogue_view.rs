@@ -549,7 +549,7 @@ impl Editor {
         if self.kind == Some(e.kind) {
             self.kind = None;
         }
-        self.status = format!("{} {}; {gone} {} {}", Self::enemy_name(lang, e), tr(lang, "removed from this level's enemies"), tr(lang, "of its objects removed from the level"), tr(lang, "(Ctrl+Z brings them back)."));
+        self.status = format!("{} {}; {gone} {} {}", Self::enemy_name(lang, e), tr(lang, "removed from this level's enemies"), tr(lang, "of its objects removed from the level"), super::shortcuts::on_this_system(tr(lang, "(Ctrl+Z brings them back).")));
         self.mark(Severity::Done);
     }
 

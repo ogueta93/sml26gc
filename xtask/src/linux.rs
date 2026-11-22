@@ -139,7 +139,8 @@ pub fn deb(root: &Path, folder: &Path, fill: &Fill) -> Result<PathBuf, String> {
         symlink(&format!("../lib/{id}/{p}"), &stage.join("usr/bin").join(p))?;
         let desktop = std::fs::read_to_string(root.join("packaging/linux").join(format!("{p}.desktop"))).map_err(|e| format!("packaging/linux/{p}.desktop: {e}"))?;
         std::fs::write(stage.join("usr/share/applications").join(format!("{p}.desktop")), fill.text(&desktop)).map_err(|e| e.to_string())?;
-        scale_icon(&root.join("assets/icons").join(format!("{p}.png")), &stage.join(format!("usr/share/icons/hicolor/{ICON}x{ICON}/apps/{p}.png")))?;
+        let icon = stage.join(format!("usr/share/icons/hicolor/{ICON}x{ICON}/apps/{p}.png"));
+        std::fs::write(&icon, crate::icons::scaled(&root.join("assets/icons").join(format!("{p}.png")), ICON)?).map_err(|e| format!("{}: {e}", icon.display()))?;
     }
     std::fs::write(lib.join(INSTALLED_MARKER), "The programs installed by the package keep their files in ~/.local/share/sml26gc.\n").map_err(|e| e.to_string())?;
     for (rel_from, rel_to) in [("README.txt", "README.txt"), ("NO-CARTRIDGE.txt", "NO-CARTRIDGE.txt"), ("LEGAL.md", "LEGAL.md"), ("LICENSE.txt", "LICENSE.txt"), ("CHANGELOG.md", "CHANGELOG.md"), ("manuals", "manuals"), ("licenses", "licenses")] {
@@ -192,52 +193,6 @@ fn gzip(data: &[u8], to: &Path) -> Result<(), String> {
     use std::io::Write;
     let mut gz = flate2::write::GzEncoder::new(std::fs::File::create(to).map_err(|e| e.to_string())?, flate2::Compression::best());
     gz.write_all(data).and_then(|_| gz.finish().map(|_| ())).map_err(|e| e.to_string())
-}
-
-/// `png`, any size and colour type, as a `ICON`-pixel square RGBA PNG (averaging the pixels).
-fn scale_icon(png_file: &Path, out: &Path) -> Result<(), String> {
-    let what = |e: &dyn std::fmt::Display| format!("{}: {e}", png_file.display());
-    let mut decoder = png::Decoder::new(std::fs::File::open(png_file).map_err(|e| what(&e))?);
-    decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
-    let mut reader = decoder.read_info().map_err(|e| what(&e))?;
-    let mut buf = vec![0; reader.output_buffer_size()];
-    let info = reader.next_frame(&mut buf).map_err(|e| what(&e))?;
-    let channels = info.color_type.samples();
-    let rgba = |x: u32, y: u32| -> [f32; 4] {
-        let p = &buf[(y as usize * info.width as usize + x as usize) * channels..][..channels];
-        match channels {
-            4 => [p[0], p[1], p[2], p[3]].map(f32::from),
-            3 => [p[0], p[1], p[2], 255].map(f32::from),
-            2 => [p[0], p[0], p[0], p[1]].map(f32::from),
-            _ => [p[0], p[0], p[0], 255].map(f32::from),
-        }
-    };
-    let mut pixels = Vec::with_capacity((ICON * ICON * 4) as usize);
-    for y in 0..ICON {
-        for x in 0..ICON {
-            let (x0, x1) = (x * info.width / ICON, ((x + 1) * info.width / ICON).max(x * info.width / ICON + 1));
-            let (y0, y1) = (y * info.height / ICON, ((y + 1) * info.height / ICON).max(y * info.height / ICON + 1));
-            let mut sum = [0.0; 4];
-            for sy in y0..y1 {
-                for sx in x0..x1 {
-                    let p = rgba(sx, sy);
-                    // colours weighted by their opacity, so transparent pixels add no colour
-                    for c in 0..3 {
-                        sum[c] += p[c] * p[3];
-                    }
-                    sum[3] += p[3];
-                }
-            }
-            let n = ((x1 - x0) * (y1 - y0)) as f32;
-            let alpha = sum[3] / n;
-            pixels.extend((0..3).map(|c| if sum[3] > 0.0 { (sum[c] / sum[3]).round() as u8 } else { 0 }));
-            pixels.push(alpha.round() as u8);
-        }
-    }
-    let mut encoder = png::Encoder::new(std::fs::File::create(out).map_err(|e| format!("{}: {e}", out.display()))?, ICON, ICON);
-    encoder.set_color(png::ColorType::Rgba);
-    encoder.set_depth(png::BitDepth::Eight);
-    encoder.write_header().and_then(|mut w| w.write_image_data(&pixels)).map_err(|e| format!("{}: {e}", out.display()))
 }
 
 #[cfg(unix)]

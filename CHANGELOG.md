@@ -6,6 +6,21 @@ What each version of the programs brings, as a person using them notices it. The
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-22
+
+### Added
+
+- macOS 11 Big Sur and later, on Apple Silicon and Intel Macs: the game and the editor as two
+  apps (`sml26gc-<version>-macos-universal.zip`), your files in
+  `~/Library/Application Support/sml26gc`. On macOS the file dialogs are the system's, the
+  editor's shortcuts use Cmd in place of Ctrl, Cmd+Ctrl+F also turns full screen on and off, and
+  the language follows the Mac's preferred languages.
+
+### Fixed
+
+- An object placed in one of the game's levels to the left of objects already there now appears
+  when the level is played; before, it could be missing (new levels were not affected).
+
 ## [1.1.0] - 2026-11-21
 
 ### Added

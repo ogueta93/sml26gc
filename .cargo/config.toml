@@ -14,3 +14,5 @@ PRODUCT_ID = "sml26gc"
 PRODUCT_SOURCE = "https://github.com/ogueta93/sml26gc"
 # Who the Linux .deb names as its maintainer (Debian needs an address).
 PRODUCT_MAINTAINER = "The SML2 6GC authors <1623086+ogueta93@users.noreply.github.com>"
+# The macOS app bundles' identifier (the editor's adds `.editor`).
+PRODUCT_BUNDLE_ID = "io.github.ogueta93.sml26gc"

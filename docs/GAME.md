@@ -61,9 +61,9 @@ project saved in the editor plays at once.
 | Save state / load state (cheats mode) | F6 / F7 | LB / RB |
 | Rewind (held, cheats mode) | R | LT |
 | Restart level (cheats mode, test games) | F8 | |
-| Full screen | F11 | |
+| Full screen | F11 (macOS: also Cmd+Ctrl+F) | |
 
-A controller (on Windows XInput or Windows.Gaming.Input, on Linux any the system sees) plays as
+A controller (on Windows XInput or Windows.Gaming.Input, on Linux and macOS any the system sees) plays as
 soon as it is connected, together with the keyboard. Every binding is changed in the pause menu, Controls.
 
 ## The pause menu
@@ -124,7 +124,8 @@ tried.
 All beside the program: `base_cartridge.txt` (the cartridge chosen), `settings.cfg`,
 `saves/vanilla/` (the original game's battery save) and `saves/<project>/` (each project's, and
 its progress in new zones). Keep the folder where it can be written; the game warns when it
-cannot. Installed on Linux from the `.deb`, they are in `~/.local/share/sml26gc/` instead.
+cannot. Installed on Linux from the `.deb`, they are in `~/.local/share/sml26gc/` instead; on
+macOS, in `~/Library/Application Support/sml26gc/`, shared by both apps.
 
 ## Command line
 
