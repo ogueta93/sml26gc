@@ -17,6 +17,11 @@ fn first_rom_in(dir: &Path) -> Option<PathBuf> {
     v.into_iter().next()
 }
 
+/// The cartridge the tests use: `SML2_ROM`, else where `find_rom` finds one.
+pub fn test_cartridge() -> Option<PathBuf> {
+    std::env::var_os("SML2_ROM").map(PathBuf::from).or_else(|| find_rom(None))
+}
+
 /// Where to find the cartridge (for the tools and tests; the programs use the base cartridge):
 /// the command line, the base cartridge, a `rom` folder beside the program (or its parent
 /// folders), then the person's Games folder.

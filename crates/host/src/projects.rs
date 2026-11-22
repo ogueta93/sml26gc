@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn a_project_file_alone_gets_its_cartridge() {
-        let Some(base) = crate::find_rom(None) else { return };
+        let Some(base) = crate::test_cartridge() else { return };
         let name = format!("ensure test {}", std::process::id());
         let dir = crate::paths::project_dir(&name);
         std::fs::create_dir_all(&dir).unwrap();

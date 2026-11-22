@@ -66,7 +66,7 @@ mod tests {
 
     #[test]
     fn the_same_picture_is_one_object_and_markers_join_by_type() {
-        let Some(path) = host::find_rom(None) else {
+        let Some(path) = host::test_cartridge() else {
             eprintln!("no cartridge found: test skipped");
             return;
         };

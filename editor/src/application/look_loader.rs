@@ -314,7 +314,7 @@ mod tests {
 
     #[test]
     fn slices_and_threads_capture_the_same_pictures() {
-        let Some(path) = std::env::var("SML2_ROM").ok().map(std::path::PathBuf::from).or_else(|| host::find_rom(None)) else {
+        let Some(path) = host::test_cartridge() else {
             eprintln!("no cartridge found: test skipped");
             return;
         };

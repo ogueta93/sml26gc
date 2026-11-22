@@ -234,7 +234,7 @@ mod tests {
     use cart_model::map_routes::{Way, RIGHT};
 
     fn open() -> Option<EditorDocument> {
-        let rom = std::fs::read(host::find_rom(None)?).ok()?;
+        let rom = std::fs::read(host::test_cartridge()?).ok()?;
         Some(EditorDocument::open(rom, None))
     }
 

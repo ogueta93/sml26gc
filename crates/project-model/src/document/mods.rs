@@ -65,7 +65,7 @@ mod tests {
     /// A new copy changes nothing; a saved block, a saved point and an added point do.
     #[test]
     fn saved_changes_mark_their_level_and_map() {
-        let Some(path) = host::find_rom(None) else {
+        let Some(path) = host::test_cartridge() else {
             eprintln!("no cartridge found: document test skipped");
             return;
         };

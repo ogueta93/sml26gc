@@ -23,4 +23,4 @@ pub mod web;
 pub use base_cartridge::{base_cartridge, BaseProblem};
 pub use battery::{load_gb, write_battery_save};
 pub use paths::{battery_file, project_file, project_place, project_restore_points, editor_exe, editor_settings_path, exe_dir, exports_dir, game_exe, project_dir, project_rom, project_rom_in, projects, projects_dir, saves_dir, settings_path, valid_project_name, zones_file, VANILLA};
-pub use rom_locator::{find_rom, require_rom, NO_CARTRIDGE};
+pub use rom_locator::{find_rom, require_rom, test_cartridge, NO_CARTRIDGE};

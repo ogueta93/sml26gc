@@ -829,7 +829,7 @@ mod tests {
     /// Plays from power-on into the first level with keys only, then uses the pause menu.
     #[test]
     fn play_into_a_level_and_use_the_menu() {
-        let Some(rom) = host::find_rom(None) else {
+        let Some(rom) = host::test_cartridge() else {
             eprintln!("no cartridge found: session test skipped");
             return;
         };
@@ -901,7 +901,7 @@ mod tests {
 
     /// A session in `level` with the cheats mode as given, and Mario at `start` if any.
     fn in_level(level: u8, cheats: bool, start: Option<(u16, u16)>) -> Option<(GameSession, Record)> {
-        let rom = host::find_rom(None)?;
+        let rom = host::test_cartridge()?;
         let gb = host::load_gb(&rom, 44100, None).unwrap();
         let rec = Record::default();
         let parts = SessionParts {
@@ -997,7 +997,7 @@ mod tests {
     /// map, and with Invincible off again the program and the file are as they were.
     #[test]
     fn cheats_from_the_pause_menu() {
-        let Some(rom) = host::find_rom(None) else {
+        let Some(rom) = host::test_cartridge() else {
             eprintln!("no cartridge found: session test skipped");
             return;
         };
@@ -1058,7 +1058,7 @@ mod tests {
     /// base level is back once on the map.
     #[test]
     fn a_new_level_is_played_from_the_original_map() {
-        let Some(rom) = host::find_rom(None) else {
+        let Some(rom) = host::test_cartridge() else {
             eprintln!("no cartridge found: session test skipped");
             return;
         };
@@ -1113,7 +1113,7 @@ mod tests {
     #[test]
     fn a_new_level_secret_exit_leads_where_chosen() {
         use cart_model::secret_exits::{self, SecretTo};
-        let Some(rom) = host::find_rom(None) else {
+        let Some(rom) = host::test_cartridge() else {
             eprintln!("no cartridge found: session test skipped");
             return;
         };
@@ -1201,7 +1201,7 @@ mod tests {
     fn a_new_zone_is_played_saved_and_left() {
         use cart_model::new_zones;
         use cart_model::ram_map::MAP_POINT;
-        let Some(rom) = host::find_rom(None) else {
+        let Some(rom) = host::test_cartridge() else {
             eprintln!("no cartridge found: session test skipped");
             return;
         };
@@ -1307,7 +1307,7 @@ mod tests {
         use cart_model::map_routes::{self, Place, Way};
         use cart_model::new_zones::ZonePoint;
         use cart_model::ram_map::MAP_POINT;
-        let Some(rom) = host::find_rom(None) else {
+        let Some(rom) = host::test_cartridge() else {
             eprintln!("no cartridge found: session test skipped");
             return;
         };
@@ -1405,7 +1405,7 @@ mod tests {
     /// begins again at the chosen place; from Play, at the bell's restart place.
     #[test]
     fn a_test_game_enters_the_level_again_after_a_lost_life() {
-        let Some(rom) = host::find_rom(None) else {
+        let Some(rom) = host::test_cartridge() else {
             eprintln!("no cartridge found: session test skipped");
             return;
         };
@@ -1451,7 +1451,7 @@ mod tests {
     #[test]
     fn a_map_test_game_begins_on_the_point_asked() {
         use cart_model::start_point::Start;
-        let Some(path) = host::find_rom(None) else { return };
+        let Some(path) = host::test_cartridge() else { return };
         let mut doc = project_model::document::EditorDocument::open(std::fs::read(path).unwrap(), None);
         let k = doc.blank_zone(1).unwrap();
         let entry = doc.new_zones[k].entry;

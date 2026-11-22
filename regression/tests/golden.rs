@@ -40,10 +40,7 @@ fn golden_path() -> PathBuf {
 }
 
 fn rom_path() -> Option<PathBuf> {
-    if let Ok(p) = std::env::var("SML2_ROM") {
-        return Some(PathBuf::from(p));
-    }
-    host::find_rom(None)
+    host::test_cartridge()
 }
 
 /// A save result as the fingerprint writes it (`Ok("...")` / `Err("...")`).
