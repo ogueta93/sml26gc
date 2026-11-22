@@ -5,8 +5,11 @@ use std::path::Path;
 pub const TRIPLE: &str = "wasm32-unknown-unknown";
 
 /// The page's files copied as they are, and the ones whose `{...}` are filled.
-const PAGE: [&str; 2] = ["gl.js", "sml26gc.js"];
-const FILLED: [&str; 2] = ["index.html", "manifest.webmanifest"];
+const PAGE: [&str; 3] = ["gl.js", "sml26gc.js", "capture-worker.js"];
+
+/// The editor's capture workers' program: its crate and the file it builds.
+pub const WORKER: (&str, &str) = ("capture-worker", "sml26gc_capture.wasm");
+const FILLED: [&str; 3] = ["index.html", "editor.html", "manifest.webmanifest"];
 
 /// The fonts the page downloads when their language is chosen (`fonts::Face::file`).
 const FONTS: [&str; 3] = ["BIZUDGothic-Regular.ttf", "NotoSansSC-Regular.otf", "NotoSansKR-Regular.otf"];
@@ -21,14 +24,16 @@ pub fn check_target() -> std::result::Result<(), String> {
     installed.then_some(()).ok_or_else(|| format!("the {TRIPLE} target is not installed: rustup target add {TRIPLE}"))
 }
 
-/// The page, the fonts and the icons into the package `folder` (which holds the program
-/// already); `fill` fills the texts.
-pub fn assemble(root: &Path, folder: &Path, program: &str, fill: impl Fn(&str) -> String) -> Result<(), String> {
+/// The capture workers' program (from `built`), the pages, the fonts and the icons into the
+/// package `folder` (which holds the programs already); `fill` fills the texts.
+pub fn assemble(root: &Path, built: &Path, folder: &Path, programs: &[String], fill: impl Fn(&str) -> String) -> Result<(), String> {
     let web = root.join("packaging").join("web");
+    std::fs::copy(built.join(WORKER.1), folder.join(WORKER.1)).map_err(|e| format!("{}: {e}", WORKER.1))?;
     for f in PAGE {
         std::fs::copy(web.join(f), folder.join(f)).map_err(|e| format!("packaging/web/{f}: {e}"))?;
     }
-    let build = build_id(folder, &[program, PAGE[0], PAGE[1]])?;
+    let files: Vec<&str> = programs.iter().map(String::as_str).chain([WORKER.1]).chain(PAGE).collect();
+    let build = build_id(folder, &files)?;
     for f in FILLED {
         let text = std::fs::read_to_string(web.join(f)).map_err(|e| format!("packaging/web/{f}: {e}"))?;
         std::fs::write(folder.join(f), fill(&text).replace("{build}", &build)).map_err(|e| format!("{f}: {e}"))?;
@@ -45,7 +50,7 @@ pub fn assemble(root: &Path, folder: &Path, program: &str, fill: impl Fn(&str) -
     Ok(())
 }
 
-/// A tag of the program's and the scripts' contents, added to their addresses in `index.html`
+/// A tag of the programs' and the scripts' contents, added to their addresses in the pages
 /// (`?v=`) so that a browser never runs an older copy it kept.
 fn build_id(folder: &Path, files: &[&str]) -> Result<String, String> {
     use std::hash::Hasher;

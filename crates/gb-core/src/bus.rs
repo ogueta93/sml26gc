@@ -15,7 +15,7 @@ pub(crate) struct Bus<O: BusObserver = NoObserver> {
     pub(crate) ie: u8,
     pub(crate) iflag: u8,
     // timer
-    div: u16,
+    pub(crate) div: u16,
     tima: u8,
     tma: u8,
     tac: u8,

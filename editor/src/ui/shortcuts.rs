@@ -1,13 +1,14 @@
 //! Every keyboard shortcut of the editor: the keys that run each panel action and the text
 //! its button shows, from one table. The table writes Ctrl for the system's shortcut key
-//! (`host::shortcut_key`: Cmd on macOS), which reads and shows the one of the system.
+//! (`host::shortcut_key`: Cmd on macOS), which reads and shows the one of the system. In the
+//! browser, the shortcuts with N that the browser keeps for itself use Alt instead.
 //!
 //! Keys are read by their place on the keyboard (US layout), so only letters, comma, period
 //! and named keys are used: they sit in the same place on a Spanish keyboard. Plus and minus
 //! accept the keys that carry them on both layouts and the keypad.
 use macroquad::prelude::{is_key_down, KeyCode};
 use super::inset::is_key_pressed;
-use host::shortcut_key::{ShortcutKey, SHORTCUT_KEY};
+use host::shortcut_key::{shortcut_key, ShortcutKey, BROWSER_KEEPS_N};
 
 /// Where the editor is: which keys mean what depends on it.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -96,12 +97,14 @@ pub enum Action {
     ImportZone,
     ReplaceZone,
     ExportProject,
+    /// The project's edited cartridge to a `.gb` file (File menu only).
+    ExportCartridge,
 }
 
 impl Action {
     /// Actions that open a file dialog.
     pub fn uses_files(self) -> bool {
-        matches!(self, ExportLevel | ImportLevel | ReplaceLevel | ExportZone | ImportZone | ReplaceZone | ExportProject)
+        matches!(self, ExportLevel | ImportLevel | ReplaceLevel | ExportZone | ImportZone | ReplaceZone | ExportProject | ExportCartridge)
     }
 }
 
@@ -202,7 +205,7 @@ pub const TABLE: &[Shortcut] = &[
 
 /// Is the system's shortcut key held (Ctrl, or Cmd on macOS)?
 pub fn command_down() -> bool {
-    match SHORTCUT_KEY {
+    match shortcut_key() {
         ShortcutKey::Control => is_key_down(K::LeftControl) || is_key_down(K::RightControl),
         ShortcutKey::Command => is_key_down(K::LeftSuper) || is_key_down(K::RightSuper),
     }
@@ -215,20 +218,44 @@ pub const MODIFIERS: [KeyCode; 8] = [K::LeftControl, K::RightControl, K::LeftSup
 pub fn pressed(ctx: Ctx) -> Vec<Action> {
     let ctrl = command_down();
     let shift = is_key_down(K::LeftShift) || is_key_down(K::RightShift);
-    TABLE.iter().filter(|s| s.ctxs.contains(&ctx) && s.ctrl == ctrl && s.shift == shift && s.keys.iter().any(|&k| is_key_pressed(k))).map(|s| s.action).collect()
+    let alt = is_key_down(K::LeftAlt) || is_key_down(K::RightAlt);
+    let held = |s: &Shortcut| if alt_instead(s, BROWSER_KEEPS_N) { alt && !ctrl } else { s.ctrl == ctrl };
+    TABLE.iter().filter(|s| s.ctxs.contains(&ctx) && held(s) && s.shift == shift && s.keys.iter().any(|&k| is_key_pressed(k))).map(|s| s.action).collect()
+}
+
+/// Does `s` use Alt in place of the shortcut key (`browser`: where the browser keeps Ctrl+N)?
+fn alt_instead(s: &Shortcut, browser: bool) -> bool {
+    browser && s.ctrl && s.keys == [K::N]
+}
+
+/// The keys used with the shortcut key, which the browser should leave to the editor.
+pub fn command_keys() -> Vec<KeyCode> {
+    let mut keys: Vec<KeyCode> = Vec::new();
+    for &k in TABLE.iter().filter(|s| s.ctrl && !alt_instead(s, BROWSER_KEEPS_N)).flat_map(|s| s.keys) {
+        if !keys.contains(&k) {
+            keys.push(k);
+        }
+    }
+    keys
+}
+
+/// `s`'s keys as written (`browser`: with Alt where it replaces the shortcut key).
+fn label(s: &Shortcut, key: ShortcutKey, browser: bool) -> String {
+    let l = if alt_instead(s, browser) { s.label.replacen("Ctrl+", "Alt+", 1) } else { s.label.to_string() };
+    with_shortcut_key(&l, key)
 }
 
 /// The keys of an action, as its button shows them.
 pub fn keys(action: Action) -> &'static str {
     static LABELS: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
-    let labels = LABELS.get_or_init(|| TABLE.iter().map(|s| with_shortcut_key(s.label, SHORTCUT_KEY)).collect());
+    let labels = LABELS.get_or_init(|| TABLE.iter().map(|s| label(s, shortcut_key(), BROWSER_KEEPS_N)).collect());
     TABLE.iter().position(|s| s.action == action).map_or("", |i| &labels[i])
 }
 
 /// `text` (a label or a message of the catalogue) with the system's shortcut key where it
 /// says Ctrl (Strg in German).
 pub fn on_this_system(text: &str) -> String {
-    with_shortcut_key(text, SHORTCUT_KEY)
+    with_shortcut_key(text, shortcut_key())
 }
 
 fn with_shortcut_key(text: &str, key: ShortcutKey) -> String {
@@ -247,8 +274,19 @@ mod tests {
         assert_eq!(with_shortcut_key("Ctrl+Shift+E", ShortcutKey::Command), "Cmd+Shift+E");
         assert_eq!(with_shortcut_key("(Strg+Z holt sie zurueck).", ShortcutKey::Command), "(Cmd+Z holt sie zurueck).");
         assert_eq!(with_shortcut_key("Ctrl+Z", ShortcutKey::Control), "Ctrl+Z");
-        assert_eq!(keys(Action::Save), format!("{}+S", SHORTCUT_KEY.label()));
+        assert_eq!(keys(Action::Save), format!("{}+S", shortcut_key().label()));
         assert_eq!(keys(Action::Play), "F5");
+    }
+
+    #[test]
+    fn in_the_browser_alt_takes_the_keys_it_keeps() {
+        let of = |a: Action| TABLE.iter().find(|s| s.action == a).unwrap();
+        assert_eq!(label(of(NewLevel), ShortcutKey::Control, true), "Alt+N");
+        assert_eq!(label(of(ImportLevel), ShortcutKey::Command, true), "Alt+Shift+N");
+        assert_eq!(label(of(NewZone), ShortcutKey::Control, true), "Alt+N");
+        assert_eq!(label(of(Save), ShortcutKey::Command, true), "Cmd+S");
+        assert_eq!(label(of(NewLevel), ShortcutKey::Control, false), "Ctrl+N");
+        assert_eq!(label(of(NewPoint), ShortcutKey::Control, true), "N", "N alone is the editor's");
     }
 
     #[test]

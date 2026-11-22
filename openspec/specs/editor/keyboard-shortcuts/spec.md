@@ -214,3 +214,14 @@ On macOS, every shortcut written with Ctrl SHALL be made with Cmd instead (Cmd+S
 #### Scenario: Labels on a Mac
 - **WHEN** the user points at the Undo button on macOS
 - **THEN** its tooltip shows Cmd+Z
+
+### Requirement: Keys the browser keeps
+In the web editor, an action whose shortcut a browser keeps for itself (Ctrl+N and Ctrl+Shift+N, Cmd+N and Cmd+Shift+N on a Mac) SHALL use Alt in place of Ctrl or Cmd, and its buttons, tooltips and menu entries SHALL show that key. Every other shortcut SHALL keep its key and SHALL NOT also do the browser's own action for it.
+
+#### Scenario: A new level in the browser
+- **WHEN** Alt+N is pressed in the level editor of the web editor
+- **THEN** a new level is made as Ctrl+N does on the desktop, and the New level button shows Alt+N
+
+#### Scenario: Saving in the browser
+- **WHEN** Ctrl+S is pressed in the web editor
+- **THEN** the project is saved and the browser does not offer to save the page

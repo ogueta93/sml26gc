@@ -15,7 +15,7 @@ pub struct EditedCopyFile {
 impl EditedCopyFile {
     fn make_dir(&self) {
         if let Some(d) = self.path.parent() {
-            let _ = std::fs::create_dir_all(d);
+            let _ = host::storage::create_dir_all(d);
         }
     }
 }
@@ -26,29 +26,29 @@ impl EditedCopyStore for EditedCopyFile {
     }
     fn write(&self, rom: &[u8]) -> std::io::Result<()> {
         self.make_dir();
-        std::fs::write(&self.path, rom)
+        host::storage::write(&self.path, rom)
     }
     fn write_project(&self, text: &str) -> std::io::Result<()> {
         self.make_dir();
-        std::fs::write(&self.project, text)
+        host::storage::write(&self.project, text)
     }
     fn read_place(&self) -> Option<String> {
-        std::fs::read_to_string(&self.place).ok()
+        host::storage::read_to_string(&self.place).ok()
     }
     fn write_place(&self, text: &str) -> std::io::Result<()> {
         self.make_dir();
-        std::fs::write(&self.place, text)
+        host::storage::write(&self.place, text)
     }
     fn read_restore_points(&self) -> Option<String> {
-        std::fs::read_to_string(&self.restore_points).ok()
+        host::storage::read_to_string(&self.restore_points).ok()
     }
     fn write_restore_points(&self, text: Option<&str>) -> std::io::Result<()> {
         match text {
             Some(t) => {
                 self.make_dir();
-                std::fs::write(&self.restore_points, t)
+                host::storage::write(&self.restore_points, t)
             }
-            None if self.restore_points.exists() => std::fs::remove_file(&self.restore_points),
+            None if host::storage::is_file(&self.restore_points) => host::storage::remove_file(&self.restore_points),
             None => Ok(()),
         }
     }
@@ -81,12 +81,12 @@ fn taken(name: &str) -> bool {
 /// Open project `name` over the base cartridge `base` (its cartridge made from its project file
 /// when missing or older, `host::projects::ensure_rom`).
 pub fn open_project(base: &Path, name: &str) -> Result<Opened, ProjectError> {
-    if !host::project_dir(name).is_dir() {
+    if !host::storage::is_dir(host::project_dir(name)) {
         return Err(ProjectError::Missing);
     }
-    let original = std::fs::read(base).map_err(io)?;
+    let original = host::storage::read(base).map_err(io)?;
     let path = host::projects::ensure_rom(base, name).map_err(|e| ProjectError::Io(e.text(i18n::Lang::En)))?;
-    let edited = std::fs::read(&path).ok();
+    let edited = host::storage::read(&path).ok();
     Ok(Opened { doc: EditorDocument::open(original, edited), store: EditedCopyFile { path, project: host::project_file(name), place: host::project_place(name), restore_points: host::project_restore_points(name) } })
 }
 
@@ -98,11 +98,11 @@ pub fn create_project(base: &Path, name: &str) -> Result<(), ProjectError> {
     if taken(name) {
         return Err(ProjectError::Taken);
     }
-    let original = std::fs::read(base).map_err(io)?;
+    let original = host::storage::read(base).map_err(io)?;
     let doc = EditorDocument::open(original, None);
-    std::fs::create_dir_all(host::project_dir(name)).map_err(io)?;
-    std::fs::write(host::project_file(name), crate::domain::files::project_text(&doc.project_file())).map_err(io)?;
-    std::fs::write(host::project_rom(name, base), &doc.rom).map_err(io)
+    host::storage::create_dir_all(host::project_dir(name)).map_err(io)?;
+    host::storage::write(host::project_file(name), crate::domain::files::project_text(&doc.project_file())).map_err(io)?;
+    host::storage::write(host::project_rom(name, base), &doc.rom).map_err(io)
 }
 
 /// Rename project `old` to `new`: its folder, its cartridge and its saves folder.
@@ -115,16 +115,16 @@ pub fn rename_project(base: &Path, old: &str, new: &str) -> Result<(), ProjectEr
     }
     let rom = host::project_rom_in(old);
     let file = host::project_file(old).file_name().map(|n| n.to_owned());
-    std::fs::rename(host::project_dir(old), host::project_dir(new)).map_err(io)?;
+    host::storage::rename(host::project_dir(old), host::project_dir(new)).map_err(io)?;
     if let Some(rom) = rom.and_then(|r| r.file_name().map(|n| host::project_dir(new).join(n))) {
-        std::fs::rename(rom, host::project_rom(new, base)).map_err(io)?;
+        host::storage::rename(rom, host::project_rom(new, base)).map_err(io)?;
     }
-    if let Some(f) = file.map(|n| host::project_dir(new).join(n)).filter(|f| f.is_file()) {
-        std::fs::rename(f, host::project_file(new)).map_err(io)?;
+    if let Some(f) = file.map(|n| host::project_dir(new).join(n)).filter(|f| host::storage::is_file(f)) {
+        host::storage::rename(f, host::project_file(new)).map_err(io)?;
     }
     let saves = host::saves_dir(Some(old));
-    if saves.is_dir() {
-        std::fs::rename(saves, host::saves_dir(Some(new))).map_err(io)?;
+    if host::storage::is_dir(&saves) {
+        host::storage::rename(saves, host::saves_dir(Some(new))).map_err(io)?;
     }
     Ok(())
 }
@@ -137,25 +137,25 @@ pub fn duplicate_project(base: &Path, name: &str, new: &str) -> Result<(), Proje
     if taken(new) {
         return Err(ProjectError::Taken);
     }
-    std::fs::create_dir_all(host::project_dir(new)).map_err(io)?;
-    if host::project_file(name).is_file() {
-        std::fs::copy(host::project_file(name), host::project_file(new)).map_err(io)?;
+    host::storage::create_dir_all(host::project_dir(new)).map_err(io)?;
+    if host::storage::is_file(host::project_file(name)) {
+        host::storage::copy(host::project_file(name), host::project_file(new)).map_err(io)?;
     }
     if let Some(rom) = host::project_rom_in(name) {
-        std::fs::copy(rom, host::project_rom(new, base)).map_err(io)?;
+        host::storage::copy(rom, host::project_rom(new, base)).map_err(io)?;
     }
-    if host::project_restore_points(name).is_file() {
-        std::fs::copy(host::project_restore_points(name), host::project_restore_points(new)).map_err(io)?;
+    if host::storage::is_file(host::project_restore_points(name)) {
+        host::storage::copy(host::project_restore_points(name), host::project_restore_points(new)).map_err(io)?;
     }
     Ok(())
 }
 
 /// Delete project `name`, its folder and its saves.
 pub fn delete_project(name: &str) -> Result<(), ProjectError> {
-    std::fs::remove_dir_all(host::project_dir(name)).map_err(io)?;
+    host::storage::remove_dir_all(host::project_dir(name)).map_err(io)?;
     let saves = host::saves_dir(Some(name));
-    if saves.is_dir() {
-        std::fs::remove_dir_all(saves).map_err(io)?;
+    if host::storage::is_dir(&saves) {
+        host::storage::remove_dir_all(saves).map_err(io)?;
     }
     Ok(())
 }
@@ -172,10 +172,10 @@ pub struct PrefsFile;
 
 impl PrefsStore for PrefsFile {
     fn load(&self) -> Prefs {
-        std::fs::read_to_string(host::editor_settings_path()).map(|t| Prefs::from_text(&t)).unwrap_or_default()
+        host::storage::read_to_string(host::editor_settings_path()).map(|t| Prefs::from_text(&t)).unwrap_or_default()
     }
     fn save(&self, prefs: &Prefs) {
-        let _ = std::fs::write(host::editor_settings_path(), prefs.to_text());
+        let _ = host::storage::write(host::editor_settings_path(), prefs.to_text());
     }
 }
 
@@ -195,13 +195,13 @@ impl LookFile {
 
 impl LookStore for LookFile {
     fn load(&self) -> Option<String> {
-        std::fs::read_to_string(&self.path).ok()
+        host::storage::read_to_string(&self.path).ok()
     }
     fn save(&self, text: &str) {
         if let Some(d) = self.path.parent() {
-            let _ = std::fs::create_dir_all(d);
+            let _ = host::storage::create_dir_all(d);
         }
-        let _ = std::fs::write(&self.path, text);
+        let _ = host::storage::write(&self.path, text);
     }
 }
 
@@ -216,9 +216,12 @@ pub struct TextFile;
 
 impl TextFiles for TextFile {
     fn read(&self, path: &Path) -> std::io::Result<String> {
-        std::fs::read_to_string(path)
+        host::storage::read_to_string(path)
     }
     fn write(&self, path: &Path, text: &str) -> std::io::Result<()> {
-        std::fs::write(path, text)
+        host::storage::write(path, text)
+    }
+    fn write_bytes(&self, path: &Path, data: &[u8]) -> std::io::Result<()> {
+        host::storage::write(path, data)
     }
 }

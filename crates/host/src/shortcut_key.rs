@@ -17,5 +17,14 @@ impl ShortcutKey {
     }
 }
 
-/// This system's shortcut key.
-pub const SHORTCUT_KEY: ShortcutKey = if cfg!(target_os = "macos") { ShortcutKey::Command } else { ShortcutKey::Control };
+/// This system's shortcut key (in the browser, the computer's).
+pub fn shortcut_key() -> ShortcutKey {
+    #[cfg(target_arch = "wasm32")]
+    return if crate::web::call(crate::web::Call::IsMac, 0.0) != 0.0 { ShortcutKey::Command } else { ShortcutKey::Control };
+    #[cfg(not(target_arch = "wasm32"))]
+    if cfg!(target_os = "macos") { ShortcutKey::Command } else { ShortcutKey::Control }
+}
+
+/// A browser keeps the shortcut key with N (and Shift+N) for its own windows: the programs use
+/// Alt for those there.
+pub const BROWSER_KEEPS_N: bool = cfg!(target_arch = "wasm32");

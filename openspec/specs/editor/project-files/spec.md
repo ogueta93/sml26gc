@@ -66,3 +66,14 @@ new zones.
 #### Scenario: Import an older file
 - **WHEN** a project file without new zones is imported over a project with two new zones
 - **THEN** the project has no new zones and everything else from the file
+
+### Requirement: Exporting the cartridge
+The editor SHALL export the project's edited cartridge (its custom ROM) to a file the user names, offered as `exports/cartridges/<project>.gb` (any folder may be chosen). It SHALL first save the project when it has unsaved changes and make the cartridge when it is missing or older than the project, as Play does, so the file holds what the editor shows. The status bar SHALL say where it was written. The file is derived from the user's cartridge, for their own use.
+
+#### Scenario: Export
+- **WHEN** project "Sky" has a painted block not yet saved and Export cartridge is chosen, keeping the offered name
+- **THEN** the project is saved, `exports/cartridges/Sky.gb` is written with the edited levels, it plays them in the game or another emulator, and the status bar says where it was written
+
+#### Scenario: Export cancelled
+- **WHEN** the user closes the Save dialog without a name
+- **THEN** no cartridge file is written; the project is saved if it had unsaved changes

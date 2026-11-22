@@ -7,3 +7,8 @@ pub fn now() -> SystemTime {
     #[cfg(not(target_arch = "wasm32"))]
     SystemTime::now()
 }
+
+/// Milliseconds since `t` (0 if the clock went back).
+pub fn since_ms(t: SystemTime) -> u128 {
+    now().duration_since(t).map_or(0, |d| d.as_millis())
+}

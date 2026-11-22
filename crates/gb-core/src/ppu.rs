@@ -28,6 +28,8 @@ pub struct Ppu {
     /// Shades 0 (lightest) ..= 3 (darkest), one byte per pixel.
     pub(crate) fb: Screen,
     pub(crate) frame_ready: bool,
+    /// Nobody looks at the screen: lines are not drawn (`GameBoy::set_unseen`).
+    pub(crate) unseen: bool,
 }
 
 impl Ppu {
@@ -52,6 +54,7 @@ impl Ppu {
             stat_line: false,
             fb: [0; W * H],
             frame_ready: false,
+            unseen: false,
         }
     }
 
@@ -170,7 +173,7 @@ impl Ppu {
                 0
             };
             if mode != self.mode {
-                if mode == 0 {
+                if mode == 0 && !self.unseen {
                     self.render_line();
                 }
                 self.mode = mode;

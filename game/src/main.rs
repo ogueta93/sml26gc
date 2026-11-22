@@ -118,6 +118,15 @@ mod tests {
     }
 
     #[test]
+    fn a_test_game_on_a_project() {
+        let a = parse_args(&["--project".into(), "Sky".into(), "--test".into(), "--level".into(), "3".into()]);
+        assert_eq!(test_project(&a), Some("Sky"));
+        assert_eq!(a.rom, None);
+        let saves = parse_args(&["--project".into(), "Sky".into()]);
+        assert_eq!(test_project(&saves), None, "without --test, only the saves are the project's");
+    }
+
+    #[test]
     fn a_start_place_is_two_numbers() {
         let a = parse_args(&["copy.gb".into(), "--level".into(), "3".into(), "--start".into(), "1200,496".into()]);
         assert_eq!(a.start, Some((1200, 496)));
@@ -138,8 +147,15 @@ fn main() {
         checks::research_main(&rom, &raw[1..]);
         return;
     }
-    let args = parse_args(&raw);
-    let found = host::require_rom(args.rom.clone());
+    let mut args = parse_args(&raw);
+    let found = match test_project(&args) {
+        Some(name) => {
+            let rom = host::require_rom(None).and_then(|base| host::projects::ensure_rom(&base, name).map_err(|e| e.text(args.lang.unwrap_or(i18n::Lang::En))));
+            args.rom = rom.as_ref().ok().cloned();
+            rom
+        }
+        None => host::require_rom(args.rom.clone()),
+    };
 
     if let Some(out) = &args.self_test {
         let res = selftest::run(found.as_deref().ok());
@@ -209,6 +225,12 @@ fn map_point(v: &str) -> Option<cart_model::start_point::Start> {
     Some(cart_model::start_point::Start { point: u8::from_str_radix(p, 16).ok()?, new_zone: zone })
 }
 
+/// A test game on a project named, not on a file: the project's cartridge, made again when
+/// missing or older (the web editor's test games).
+fn test_project(args: &Args) -> Option<&str> {
+    args.project.as_deref().filter(|_| args.test && args.rom.is_none())
+}
+
 /// Where the saves of the cartridge on the command line go.
 fn command_line_saves(args: &Args, checking: bool) -> Option<PathBuf> {
     (!checking && !args.test).then(|| host::saves_dir(args.project.as_deref()))
@@ -242,7 +264,7 @@ async fn run(args: Args, found: Result<PathBuf, String>, checking: bool, title: 
     let mut display = MacroquadDisplay::new();
     let mut touch = Touch::new();
     // no cartridge on the command line: the start screen first (checks find it themselves)
-    let mut app = if args.rom.is_none() && (!checking || args.start_screen) {
+    let mut app = if args.rom.is_none() && test_project(&args).is_none() && (!checking || args.start_screen) {
         App::Pick({
             let mut picker = Picker::new(&SettingsFile.load());
             picker.error = host::paths::data_dir_problem(picker.lang()).map(String::from);

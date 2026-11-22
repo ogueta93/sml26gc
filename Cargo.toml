@@ -8,6 +8,8 @@ members = [
     "crates/fonts",
     "crates/app-resources",
     "crates/project-model",
+    "crates/look-capture",
+    "crates/capture-worker",
     "game",
     "editor",
     "tools/research",
@@ -29,6 +31,7 @@ i18n = { path = "crates/i18n" }
 fonts = { path = "crates/fonts", default-features = false }
 app-resources = { path = "crates/app-resources" }
 project-model = { path = "crates/project-model" }
+look-capture = { path = "crates/look-capture" }
 macroquad = "0.4"
 cpal = "0.15"
 png = "0.17"

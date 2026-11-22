@@ -18,6 +18,8 @@ unsafe extern "C" {
     fn sml_audio_push(samples: *const f32, len: usize, volume: f32);
     fn sml_pad_state(out: *mut f32, len: usize) -> i32;
     fn sml_ui_rect(what: u32, x: f32, y: f32, w: f32, h: f32);
+    fn sml_download(name: *const u8, name_len: usize, data: *const u8, data_len: usize);
+    fn sml_capture_start(rom: *const u8, rom_len: usize, original: *const u8, original_len: usize) -> f64;
 }
 
 /// The page's script checks it matches its own (`miniquad_add_plugin`'s version).
@@ -65,6 +67,8 @@ pub enum Text {
     Languages = 1,
     /// The name of the next file the person chose or dropped, kept in the storage under `INCOMING`.
     Arrived = 2,
+    /// The next result line of the editor's capture workers.
+    Captured = 3,
 }
 
 pub fn text(what: Text) -> Option<String> {
@@ -102,6 +106,14 @@ pub enum Call {
     HasTouch = 8,
     /// 1 while a cartridge file is on its way: being chosen, read, or not taken yet.
     CartridgeComing = 9,
+    /// The document has unsaved changes (1) or not (0): closing the page asks first then.
+    Unsaved = 10,
+    /// 1 on a Mac (its shortcuts use Cmd).
+    IsMac = 11,
+    /// How many capture workers wait for a job; -1 when every one failed to start.
+    CaptureIdle = 12,
+    /// Stop the capture workers of generation `value` (not newer ones).
+    CaptureStop = 13,
 }
 
 pub fn call(what: Call, value: f64) -> f64 {
@@ -116,6 +128,14 @@ pub enum TextCall {
     ChooseFile = 0,
     /// Download the font file of this name, once; it arrives in the storage under `FONTS`.
     FetchFont = 1,
+    /// Open a page of the site: `<window name>` and its address, on two lines (a window of
+    /// that name already open shows the page instead).
+    OpenPage = 2,
+    /// The keys (`KeyboardEvent.code`, space separated) whose Ctrl or Cmd combinations the
+    /// program uses: the browser does not also act on them.
+    OwnKeys = 3,
+    /// Give this job line to an idle capture worker.
+    CaptureJob = 4,
 }
 
 pub fn call_text(what: TextCall, text: &str) -> f64 {
@@ -152,6 +172,54 @@ pub fn ui_rect(what: UiRect, x: f32, y: f32, w: f32, h: f32) {
 /// The folder the person's chosen and dropped files arrive in.
 pub fn incoming_dir() -> PathBuf {
     PathBuf::from("/incoming")
+}
+
+/// Save `data` as a download named `name`, in the browser's download folder.
+pub fn download(name: &str, data: &[u8]) {
+    unsafe { sml_download(name.as_ptr(), name.len(), data.as_ptr(), data.len()) }
+}
+
+/// Start the editor's capture workers (`packaging/web/capture-worker.js`) for these cartridges,
+/// stopping earlier ones: their generation, or None when the page cannot start workers.
+pub fn capture_start(rom: &[u8], original: &[u8]) -> Option<u32> {
+    let generation = unsafe { sml_capture_start(rom.as_ptr(), rom.len(), original.as_ptr(), original.len()) };
+    (generation > 0.0).then_some(generation as u32)
+}
+
+/// Files written here are downloaded, not kept.
+pub fn downloads_dir() -> PathBuf {
+    PathBuf::from("/downloads")
+}
+
+/// Open `address` (a page of the site) in the window named `window` (`_blank`: a new one).
+pub fn open_page(window: &str, address: &str) {
+    call_text(TextCall::OpenPage, &format!("{window}\n{address}"));
+}
+
+/// The program's arguments as a page address's query: `--name value` as `name=value`, a flag
+/// as `name` (the page turns them back, `Text::Arguments`).
+pub fn query(args: &[String]) -> String {
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        let name = args[i].trim_start_matches("--");
+        match args.get(i + 1).filter(|v| !v.starts_with("--")) {
+            Some(v) => {
+                out.push(format!("{name}={}", encode(v)));
+                i += 2;
+            }
+            None => {
+                out.push(name.to_string());
+                i += 1;
+            }
+        }
+    }
+    out.join("&")
+}
+
+/// `text` safe in an address's query.
+fn encode(text: &str) -> String {
+    text.bytes().map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") }).collect()
 }
 
 /// The folder downloaded fonts are kept in.

@@ -1,8 +1,9 @@
 SML2 6GC in the browser
 
 An emulator that plays Super Mario Land 2: 6 Golden Coins from your own cartridge file, in a
-web browser, on a computer, a phone or a tablet. No game is included: see NO-CARTRIDGE.txt.
-The manual is in the manuals folder; what each version brings, in CHANGELOG.md.
+web browser, on a computer, a phone or a tablet, and an editor that makes your own levels and
+maps from it, on a computer. No game is included: see NO-CARTRIDGE.txt. The manuals are in the
+manuals folder; what each version brings, in CHANGELOG.md.
 
 Not affiliated with or endorsed by Nintendo.
 
@@ -38,10 +39,20 @@ The first time, the page asks for your Super Mario Land 2 - 6 Golden Coins (USA,
 page. It is read by the browser and kept in it; it is never sent anywhere, not even to the
 server the page comes from.
 
-The cartridge, settings and saves are kept in the browser's storage for that site, and stay
-when the browser is closed. Clearing the site's data (or the browser's history with "site
+The cartridge, settings, saves and the editor's projects are kept in the browser's storage for
+that site, and stay when the browser is closed. To keep a copy of a project elsewhere, export
+it in the editor (File, Export project). Clearing the site's data (or the browser's history with "site
 data") removes them all, and the page asks for the cartridge again. Each browser, and each
 address the page is served from, keeps its own.
+
+
+THE EDITOR
+
+editor.html (or Edit and New project on the game's start screen) opens the editor in a tab of
+its own. It needs a mouse or trackpad and a keyboard: on a phone or tablet the page says so. It
+uses the same cartridge as the game, and the projects saved in it are on the game's start
+screen. Files it exports are downloaded; File, Export cartridge downloads a project's edited
+copy (.gb). The manual is manuals/EDITOR.md.
 
 
 ON A PHONE OR TABLET

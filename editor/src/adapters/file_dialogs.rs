@@ -14,6 +14,10 @@ pub struct SystemDialogs {
 }
 
 impl SystemDialogs {
+    pub fn new(lang: Lang, owner: &'static str) -> SystemDialogs {
+        SystemDialogs { lang, owner }
+    }
+
     fn names(&self, kind: FileKind) -> (&'static str, &'static str, &'static str) {
         let lang = self.lang;
         match kind {
@@ -21,6 +25,7 @@ impl SystemDialogs {
             FileKind::Zone => (tr(lang, "Zone or world map file"), tr(lang, "Export zone"), tr(lang, "Import zone")),
             FileKind::World => (tr(lang, "World map file"), tr(lang, "Export world map"), tr(lang, "Import world map")),
             FileKind::Project => (tr(lang, "Project file"), tr(lang, "Export project"), tr(lang, "Import project")),
+            FileKind::Cartridge => (tr(lang, "Game Boy cartridges"), tr(lang, "Export cartridge"), tr(lang, "Choose the Super Mario Land 2 cartridge")),
         }
     }
 }
@@ -32,6 +37,7 @@ fn folder(kind: FileKind, name: Option<&str>) -> PathBuf {
         FileKind::Zone => host::paths::zone_exports(),
         FileKind::World => host::paths::zone_exports(),
         FileKind::Project => name.map_or_else(|| host::exports_dir().join("projects"), host::paths::project_exports),
+        FileKind::Cartridge => host::exports_dir().join("cartridges"),
     }
 }
 

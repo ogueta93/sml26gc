@@ -34,9 +34,16 @@ impl Editor {
         if self.mode == Mode::Objects && !self.in_world {
             let mut want: Vec<(usize, u8)> = self.doc.levels[self.cur].content.objs.iter().map(|o| (base, o.kind)).collect();
             want.extend(self.kind.map(|k| (base, k)));
+            want.extend(self.offered.get(&base).into_iter().flatten().map(|(k, _)| (base, *k)));
             want.retain(|key| !self.looks.contains_key(key));
             self.look_loader.prefer(&want);
+            if self.look_loader.tiles_left() > 0 {
+                let mut tiles: Vec<(usize, u8)> = cart_model::objects::read(&self.doc.original, base).0.iter().map(|o| (base, o.kind)).collect();
+                tiles.extend(self.doc.level_enemies(self.cur).into_iter().flat_map(|set| set.enemies.iter().map(|e| (e.level as usize, e.kind))));
+                self.look_loader.prefer_tiles(&tiles);
+            }
         }
+        self.look_loader.pump();
         for (l, k, look) in self.look_loader.take() {
             self.add_look(l, k, look);
         }
@@ -69,6 +76,7 @@ impl Editor {
     /// Wait until every picture and tile is captured, and keep them (for the command line).
     pub fn capture_all(&mut self) {
         while !self.look_loader.done() {
+            self.look_loader.pump();
             for (l, k, look) in self.look_loader.take() {
                 self.add_look(l, k, look);
             }

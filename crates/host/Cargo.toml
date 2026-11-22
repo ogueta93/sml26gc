@@ -12,6 +12,11 @@ gb-core.workspace = true
 png.workspace = true
 i18n.workspace = true
 project-model.workspace = true
+fonts.workspace = true
+
+# The fonts built in off the web; the page gives the web build its own (`font_files`).
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+fonts = { workspace = true, features = ["bundled"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys.workspace = true

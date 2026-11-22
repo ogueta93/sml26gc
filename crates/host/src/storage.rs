@@ -239,6 +239,10 @@ pub fn rename(from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<()> {
 pub fn read_dir(p: impl AsRef<Path>) -> io::Result<Vec<PathBuf>> {
     imp::read_dir(p.as_ref())
 }
+/// A copy of file `from` at `to`.
+pub fn copy(from: impl AsRef<Path>, to: impl AsRef<Path>) -> io::Result<()> {
+    write(to, read(from)?)
+}
 pub fn is_file(p: impl AsRef<Path>) -> bool {
     imp::is_file(p.as_ref())
 }

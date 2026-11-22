@@ -265,7 +265,7 @@ pub fn info<O: BusObserver>(g: &mut GameBoy<O>) -> Info {
     Info { level: g.read(LEVEL_NUMBER), x: word(g, PLAYER_X), y: word(g, PLAYER_Y), point: g.read(MAP_POINT), mode: g.read(GAME_MODE), objects }
 }
 
-fn slots_in_use<O: BusObserver>(g: &GameBoy<O>) -> Vec<u16> {
+pub(crate) fn slots_in_use<O: BusObserver>(g: &GameBoy<O>) -> Vec<u16> {
     (0..SLOT_COUNT).map(|s| SLOTS + s * SLOT_LEN).filter(|&s| ram(g, s + SLOT_USED) != 0).collect()
 }
 

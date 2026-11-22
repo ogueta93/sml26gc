@@ -51,6 +51,22 @@ pub trait LookStore {
     fn save(&self, text: &str);
 }
 
+/// Background capture workers (the browser's), each running one job line at a time
+/// (`look_capture`).
+pub trait CapturePool: Sync {
+    /// Start workers for these cartridges, stopping earlier ones: their generation, or None
+    /// when none can start.
+    fn start(&self, rom: &[u8], original: &[u8]) -> Option<u32>;
+    /// How many more jobs the workers take now (a few ahead each); None when every worker
+    /// failed to start.
+    fn idle(&self) -> Option<usize>;
+    fn send(&self, job: &str);
+    /// The next result line.
+    fn take(&self) -> Option<String>;
+    /// Stop the workers of `generation` (not newer ones).
+    fn stop(&self, generation: u32);
+}
+
 /// The speakers, for listening to a level's music.
 pub trait SoundOut {
     fn sample_rate(&self) -> u32;
@@ -66,6 +82,8 @@ pub enum FileKind {
     Zone,
     World,
     Project,
+    /// The project's edited cartridge (its custom ROM).
+    Cartridge,
 }
 
 impl FileKind {
@@ -75,6 +93,7 @@ impl FileKind {
             FileKind::Zone => "nmbzone",
             FileKind::World => "nmbworld",
             FileKind::Project => "nmbproject",
+            FileKind::Cartridge => "gb",
         }
     }
 }
@@ -90,11 +109,27 @@ pub trait FileDialogs {
     fn set_lang(&mut self, lang: i18n::Lang);
     /// Can a dialog open on this computer? (A cancelled one and a missing one both give None.)
     fn available(&self) -> bool;
+    /// A chooser that answers later (the browser's): the last `open` or `pick_cartridge` that
+    /// gave None opened one. True, once, when its file has come: the same call made again gets
+    /// it.
+    fn arrived(&self) -> bool {
+        false
+    }
+    /// A file dropped on the window, unasked: its kind (a world map file is `World`). The next
+    /// `open` of that kind (a zone's takes a world map's too) or `pick_cartridge` gets it.
+    fn dropped(&self) -> Option<FileKind> {
+        None
+    }
+    /// How a file written to a path `save_as` gave is named to the user.
+    fn shown(&self, path: &Path) -> String {
+        path.display().to_string()
+    }
 }
 
 pub trait TextFiles {
     fn read(&self, path: &Path) -> std::io::Result<String>;
     fn write(&self, path: &Path, text: &str) -> std::io::Result<()>;
+    fn write_bytes(&self, path: &Path, data: &[u8]) -> std::io::Result<()>;
 }
 
 pub enum MenuEntry<'a> {

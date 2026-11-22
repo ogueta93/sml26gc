@@ -11,7 +11,7 @@ catalogue and captures the object pictures again.
 The editor window SHALL have a menu bar above the panels with a File menu (Spanish: Archivo)
 holding, in order: Save; Export level, Import level as a new level, Replace this level from a
 file; Export zone, Import zone as a new zone, Replace this zone from a file; Export project,
-Import project. Each entry SHALL show its shortcut and run the same action as the shortcut.
+Export cartridge, Import project. Each entry with a shortcut SHALL show it and run the same action as the shortcut; Export cartridge has none.
 
 #### Scenario: Export a level from the menu
 - **WHEN** the level editor is shown and the user opens File and chooses Export level
@@ -24,6 +24,10 @@ Import project. Each entry SHALL show its shortcut and run the same action as th
 #### Scenario: Export a zone from the menu
 - **WHEN** a zone map is shown in the world map editor and the user chooses Export zone
 - **THEN** the Save dialog for a zone file opens, as with Ctrl+E there
+
+#### Scenario: Export cartridge from the menu
+- **WHEN** a project is open and the user chooses File, Export cartridge
+- **THEN** the Save dialog for a cartridge opens (in the browser, the cartridge is downloaded)
 
 ### Requirement: Unavailable entries greyed out
 File menu entries that cannot run where the editor is SHALL be greyed out and do nothing:
