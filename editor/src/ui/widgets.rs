@@ -197,13 +197,13 @@ fn with_font<R>(f: impl FnOnce(Option<&Font>) -> R) -> R {
     })
 }
 
-/// The sizes the editor writes in.
-const TEXT_SIZES: [u16; 11] = [10, 12, 13, 14, 15, 16, 18, 20, 22, 25, 26];
+/// The sizes the editor writes in, those labels shrink to fit included.
+const TEXT_SIZES: std::ops::RangeInclusive<u16> = 8..=26;
 
 /// `font`'s letters measured in every size, before anything is drawn with it: macroquad makes
 /// a font's glyph texture anew when it fills up, and text already drawn in that frame would
 /// point at the old one (the browser logs "glBindTexture called with an already deleted
-/// texture").
+/// texture"; on macOS the texture could even stay blank, `inset::seal_drawing`).
 fn warm(font: Option<&Font>) {
     let ascii: String = (' '..='~').collect();
     for size in TEXT_SIZES {
