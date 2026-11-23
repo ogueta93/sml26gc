@@ -9,12 +9,16 @@ place, so a project can have more zones than the cartridge.
 
 ### Requirement: Entering a new zone
 When Mario uses a world map point that is a door into a new zone, the game SHALL show that
-zone: its picture, with the base zone's graphics and music, and Mario on the zone's first
-point.
+zone: its picture, with the base zone's graphics and the new zone's own music, and Mario on the
+zone's first point.
 
 #### Scenario: Door to a new zone
 - **WHEN** world point $05 is the door into new zone 1 (made from the Tree Zone) and Mario presses A on it
 - **THEN** new zone 1's picture is shown with the Tree Zone's tiles and music, and Mario stands on its first point
+
+#### Scenario: A new zone with its own music
+- **WHEN** new zone 1 (made from the Tree Zone) was given the Space Zone's map music and Mario enters it
+- **THEN** new zone 1 is shown with the Tree Zone's tiles and plays the Space Zone's map music
 
 ### Requirement: Walking and playing in a new zone
 Inside a new zone, Mario SHALL walk its own paths between its own points, and each point SHALL

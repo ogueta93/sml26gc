@@ -7,15 +7,27 @@ code keeps what depends on the system apart so another platform can be added.
 ## Requirements
 
 ### Requirement: Supported platforms
-The supported platforms SHALL be Windows 11 on x86-64 (`windows-x64`), Linux on x86-64 (`linux-x64`), for desktop distributions with glibc 2.31 or newer (Debian 11, Ubuntu 20.04 and later) and an X11 or Wayland (through Xwayland) desktop, and macOS 11 Big Sur or later on Apple Silicon and Intel (`macos-universal`). Each platform's package SHALL be built on that platform; the Linux one inside a Debian 11 container (see packaging).
+The supported platforms SHALL be Windows 10 or 11, 64-bit, on x86-64 (`windows-x64`) and ARM (`windows-arm64`); Linux on x86-64 (`linux-x64`) and 64-bit ARM (`linux-arm64`), desktops with glibc 2.27 or newer and X11 or Wayland (through Xwayland); macOS 11 Big Sur or later on Apple Silicon and Intel (`macos-universal`); and web browsers (`web`, see `release/web`). Each desktop package SHALL be built on its own platform and architecture (see packaging); the web package on any of the three.
 
 #### Scenario: The targets the package command knows
 - **WHEN** the package command lists its targets
-- **THEN** it lists `windows-x64`, `linux-x64` and `macos-universal`
+- **THEN** it lists `windows-x64`, `windows-arm64`, `linux-x64`, `linux-arm64`, `macos-universal` and `web`
 
 #### Scenario: An older distribution
-- **WHEN** the Linux package is unpacked on Ubuntu 20.04 or Debian 11 and `./sml26gc` is run
+- **WHEN** the Linux package is unpacked on Ubuntu 18.04, Linux Mint 19, Debian 10 or Rocky Linux 8 and `./sml26gc` is run
 - **THEN** the game starts, with no error about the glibc version
+
+#### Scenario: A Raspberry Pi
+- **WHEN** the `linux-arm64` package is unpacked on a Raspberry Pi 4 or 5 running 64-bit Raspberry Pi OS with its desktop, and `./sml26gc` is run
+- **THEN** the game starts and asks for its base cartridge
+
+#### Scenario: Windows 10
+- **WHEN** the Windows package is unpacked on Windows 10 (64-bit, with its updates) and `sml26gc.exe` is opened
+- **THEN** the game starts and asks for its base cartridge, as on Windows 11
+
+#### Scenario: Windows on ARM
+- **WHEN** the `windows-arm64` package is unpacked on a Windows 11 ARM laptop and `sml26gc.exe` is opened
+- **THEN** the game starts natively, not through x64 emulation
 
 #### Scenario: A Wayland desktop
 - **WHEN** the game is started on Ubuntu 24.04 with its default Wayland session
@@ -25,11 +37,19 @@ The supported platforms SHALL be Windows 11 on x86-64 (`windows-x64`), Linux on 
 - **WHEN** the macOS package built on the newest macOS is opened on macOS 11 or 12
 - **THEN** the game starts, with no error about a missing system function
 
+#### Scenario: The web package built on Windows
+- **WHEN** the web package is built on Windows and on Linux from the same commit
+- **THEN** both play the same in a browser
+
 ### Requirement: Runs without installing anything
 On a supported platform, the unpacked executables SHALL start on a freshly installed system with no runtime, redistributable or library installed beforehand: the C runtime is part of each executable on Windows, on Linux they need only libraries a desktop distribution installs by default (glibc, ALSA, udev, OpenGL and X11), and on macOS only the system's own libraries and frameworks. The fonts and translation catalogues are inside them. The only file the person adds is their cartridge.
 
 #### Scenario: A fresh Windows 11
 - **WHEN** the Windows package is unpacked on a Windows 11 computer without the Visual C++ Redistributable and `sml26gc.exe` is opened
+- **THEN** the game starts and asks for its base cartridge, with no error about a missing DLL
+
+#### Scenario: A fresh Windows 10
+- **WHEN** the Windows package is unpacked on a Windows 10 computer without the Visual C++ Redistributable and `sml26gc.exe` is opened
 - **THEN** the game starts and asks for its base cartridge, with no error about a missing DLL
 
 #### Scenario: A fresh Ubuntu desktop
@@ -63,11 +83,15 @@ On Windows, opening the editor or the game SHALL show only its own window, with 
 - **THEN** its messages appear in that terminal
 
 ### Requirement: The system stays behind ports
-Code that depends on the operating system (window menus, file dialogs, the system language, the data folder, starting the other program, the shortcut key, the executables' names and resources) SHALL be in adapters behind ports, selected per platform at build time, each with its Windows, Linux and macOS implementations where they differ and a fallback for other systems that builds and keeps the program usable. The domain and application code SHALL build for any target.
+Code that depends on the operating system or the browser (window menus, file dialogs, the system language, the data folder and its files, the clock, sound, controllers, starting the other program, the shortcut key, the executables' names and resources) SHALL be in adapters behind ports, selected per platform at build time, each with its Windows, Linux, macOS and web implementations where they differ and a fallback for other systems that builds and keeps the program usable. The domain and application code SHALL build for any target, WebAssembly included.
 
 #### Scenario: Adding a platform
 - **WHEN** macOS support is added
 - **THEN** the work is new adapters, a new package target and their tests, and no domain or application module changes
+
+#### Scenario: Adding the web
+- **WHEN** the web game is added
+- **THEN** the game's rules, its menu and its session are the same code as on the desktop, and only adapters, the composition root's choice of them and the package target are new
 
 ### Requirement: Built with the current Rust
 The workspace SHALL use the current Rust edition (2024) with its dependency resolver (3), and declare as `rust-version` the stable toolchain it is built and tested with (1.100). Every crate SHALL take the edition from the workspace. The whole workspace SHALL build without warnings, and the tests, the regression fingerprint included, SHALL pass unchanged: the edition changes the code's language rules, never what the programs do.

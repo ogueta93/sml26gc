@@ -101,6 +101,7 @@ loader, so it reads from bank $23, whose $4000-$6036 (8247 bytes) holds the list
 | Map tile graphics | bank $0D $4000-$57FF | read-watch at map load |
 | Level each point opens | byte table 0F:4218, 130 points indexed by $A840; $FE = no level | 0F:41A6-0F:41B5 → $A269 |
 | Point positions / paths | spread through per-point code in bank $0F (0F:438D…) | not editable yet |
+| Each map's music | the `nn` of `ld a,nn / ld ($A468),a` in the map's set-up code: Tree 0F:5186 ($10), Pumpkin 0F:5297 ($1E), Macro 0F:5401 ($05), Space 0F:552B ($1C), Turtle 0F:5694 ($12), Mario 0F:5840 ($1B), Wario's Castle 0F:5758 ($0E), bonus game 0F:58D6 ($0D), world map 0F:6A9B and 0F:71FD ($06) | write-watch on $A468 while each map is shown |
 
 Checked (`--research worldcheck`): the 32×32 window the game puts in VRAM on the map matches our
 reading of the picture (1016/1024 tiles; the rest are animated), and setting point 0 to level 6

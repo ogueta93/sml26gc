@@ -7,10 +7,12 @@ Two programs for Super Mario Land 2: 6 Golden Coins, written in Rust, that use t
   with a resizable window or full screen, colour palettes, keyboard and controllers with any
   bindings, a pause menu in 11 languages, fast forward and, when wanted, cheats, save states and
   rewind. It plays the original game and every project made in the editor, each with its own
-  saves. Manual: [`docs/GAME.md`](docs/GAME.md).
+  saves. It also plays in a web browser, on a computer, a phone (with on-screen controls) or a
+  tablet. Manual: [`docs/GAME.md`](docs/GAME.md).
 - **`sml26gc_editor`**, the level editor: edits the game's levels, objects, world map and zones
   in projects (new levels, new zones, map points, checkpoints, secret exits, level settings),
-  each saved as an edited copy of the cartridge that the game's own program plays. Manual:
+  each saved as an edited copy of the cartridge that the game's own program plays; also in a
+  web browser on a computer. Manual:
   [`docs/EDITOR.md`](docs/EDITOR.md).
 
 <p align="center">
@@ -47,26 +49,41 @@ is the code, and the same checks apply to every change, whoever or whatever wrot
 in [`AGENTS.md`](AGENTS.md), the tests (with the regression fingerprint, which holds the emulator
 to its recorded behaviour) and the specs in `openspec/specs/`.
 
+## Try it here
+
+Play the latest version in your browser at <https://ogueta93.github.io/sml26gc/>, and edit at
+<https://ogueta93.github.io/sml26gc/editor.html> (on a computer). It asks for your own cartridge
+file, which stays in your browser.
+
 ## Playing
 
-The programs run on Windows 11, Linux (x86-64; Debian 11, Ubuntu 20.04 and later
-distributions) and macOS 11 Big Sur or later (Apple Silicon and Intel). Nothing needs installing
+The programs run on Windows 10 and 11 (x86-64 and ARM), Linux (x86-64 and 64-bit ARM, such as a
+Raspberry Pi 4 or 5; Ubuntu 18.04, Debian 10, RHEL 8 and later distributions) and macOS 11 Big
+Sur or later (Apple Silicon and Intel). Nothing needs installing
 besides them; the first time, either program asks for your cartridge file.
 
-- **Windows**: unpack `sml26gc-<version>-windows-x64.zip` in a folder you can write to, such as
-  Documents, and open `sml26gc.exe` or `sml26gc_editor.exe`.
-- **Linux**: unpack `sml26gc-<version>-linux-x64.tar.gz` in your home folder and run
-  `./sml26gc` or `./sml26gc_editor` in the `sml26gc` folder (any distribution); or, on Debian,
-  Ubuntu, Mint and the like, install `sml26gc_<version>_amd64.deb`
-  (`sudo apt install ./sml26gc_<version>_amd64.deb`) and open them from the application menu.
+- **Windows**: unpack `sml26gc-<version>-windows-x64.zip` (on an ARM laptop,
+  `-windows-arm64.zip`) in a folder you can write to, such as Documents, and open `sml26gc.exe`
+  or `sml26gc_editor.exe`.
+- **Linux**: unpack `sml26gc-<version>-linux-x64.tar.gz` (on 64-bit ARM, `-linux-arm64.tar.gz`)
+  in your home folder and run `./sml26gc` or `./sml26gc_editor` in the `sml26gc` folder (any
+  distribution); or, on Debian, Ubuntu, Mint, Raspberry Pi OS and the like, install
+  `sml26gc_<version>_amd64.deb` (on ARM, `_arm64.deb`) with
+  `sudo apt install ./sml26gc_<version>_amd64.deb` and open them from the application menu.
 - **macOS**: unpack `sml26gc-<version>-macos-universal.zip`, move `SML2 6GC.app` and
   `SML2 6GC Editor.app` together into Applications, and open each the first time as its read-me
   says (the apps are not signed with an Apple developer identity).
+- **A web browser**: unpack `sml26gc-<version>-web.zip` and serve the `sml26gc` folder with any
+  web server, such as `python3 -m http.server` in it (on Windows `py -m http.server`), then open
+  `http://localhost:8000/` (the editor: `editor.html`, on a computer); or upload the folder to a
+  static web host to play it over HTTPS from any device. The cartridge you choose is read by the
+  browser and kept in it, never sent anywhere.
 
 What a computer needs and what to do when a program does not start: the read-me in the package,
 [`packaging/windows/README.txt`](packaging/windows/README.txt),
-[`packaging/linux/README.txt`](packaging/linux/README.txt) or
-[`packaging/macos/README.txt`](packaging/macos/README.txt).
+[`packaging/linux/README.txt`](packaging/linux/README.txt),
+[`packaging/macos/README.txt`](packaging/macos/README.txt) or
+[`packaging/web/README.txt`](packaging/web/README.txt).
 
 ## Documentation
 

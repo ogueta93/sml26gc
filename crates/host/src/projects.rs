@@ -34,12 +34,12 @@ impl ProjectRomError {
 }
 
 fn modified(p: &Path) -> Option<std::time::SystemTime> {
-    std::fs::metadata(p).ok()?.modified().ok()
+    crate::storage::modified(p)
 }
 
 /// Does project `name` have what makes it (its project file, or at least a cartridge)?
 pub fn playable(name: &str) -> bool {
-    project_file(name).is_file() || project_rom_in(name).is_some()
+    crate::storage::is_file(project_file(name)) || project_rom_in(name).is_some()
 }
 
 /// Project `name`'s cartridge over the base cartridge `base`: as it is, or made again from the
@@ -56,15 +56,15 @@ pub fn ensure_rom(base: &Path, name: &str) -> Result<PathBuf, ProjectRomError> {
     if fresh {
         return Ok(rom.unwrap_or_else(|| project_rom(name, base)));
     }
-    let text = std::fs::read_to_string(&file).map_err(|e| ProjectRomError::Unreadable(e.to_string()))?;
-    let original = std::fs::read(base).map_err(|e| ProjectRomError::Unreadable(e.to_string()))?;
+    let text = crate::storage::read_to_string(&file).map_err(|e| ProjectRomError::Unreadable(e.to_string()))?;
+    let original = crate::storage::read(base).map_err(|e| ProjectRomError::Unreadable(e.to_string()))?;
     let made = build::project_rom(&original, &text).map_err(|e| match e {
         BuildError::File(FileError::OtherCartridge) => ProjectRomError::OtherCartridge,
         BuildError::File(_) => ProjectRomError::Damaged,
         BuildError::Cartridge(e) => ProjectRomError::TooBig(e.to_string()),
     })?;
     let out = rom.unwrap_or_else(|| project_rom(name, base));
-    std::fs::write(&out, made).map_err(|e| ProjectRomError::Unreadable(e.to_string()))?;
+    crate::storage::write(&out, made).map_err(|e| ProjectRomError::Unreadable(e.to_string()))?;
     Ok(out)
 }
 
@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn a_project_file_alone_gets_its_cartridge() {
-        let Some(base) = crate::find_rom(None) else { return };
+        let Some(base) = crate::test_cartridge() else { return };
         let name = format!("ensure test {}", std::process::id());
         let dir = crate::paths::project_dir(&name);
         std::fs::create_dir_all(&dir).unwrap();

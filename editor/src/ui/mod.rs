@@ -18,7 +18,7 @@ mod palette;
 mod projects_view;
 mod recent_view;
 mod search_view;
-mod shortcuts;
+pub mod shortcuts;
 mod goal_view;
 pub mod language_menu;
 mod start_view;
@@ -146,6 +146,8 @@ pub struct Editor {
     text_files: Box<dyn TextFiles>,
     /// A file action waiting for the keys and buttons to be let go (see `run_pending_file`).
     pending_file: Option<Action>,
+    /// The last file action that asked for a file: run again when the file comes later.
+    last_open: Option<Action>,
     /// Mario's picture at a level's start (None: not captured yet; Some(None): no picture).
     mario: Option<Option<(Texture2D, f32, f32)>>,
     /// What a click on the level places, when not painting or moving objects.
@@ -358,6 +360,7 @@ impl Editor {
             dialogs,
             text_files,
             pending_file: None,
+            last_open: None,
             mario: None,
             placing: None,
             drag_start: false,
@@ -480,9 +483,6 @@ impl Editor {
                 self.update_level();
             }
             self.draw_level();
-        }
-        if self.in_world {
-            self.music.stop();
         }
         self.music.pump(&*self.sound, self.prefs.music_volume as f32 / *crate::domain::prefs::MUSIC_VOLUMES.end() as f32);
     }
@@ -741,6 +741,7 @@ impl Editor {
         if map == self.world_map {
             return;
         }
+        self.music.stop();
         self.world_map = map;
         self.tiles = None;
         self.doc.show_added(map);
@@ -788,6 +789,7 @@ impl Editor {
         if on == self.in_world {
             return;
         }
+        self.music.stop();
         self.leave_grid();
         if on {
             self.level_cam = self.cam;
@@ -977,7 +979,7 @@ impl Editor {
     }
 
     /// Is the project different from what was last saved?
-    fn unsaved(&self) -> bool {
+    pub fn unsaved(&self) -> bool {
         crate::domain::files::project_text(&self.doc.project_file()) != self.saved_project
     }
 

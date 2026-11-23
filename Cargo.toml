@@ -8,6 +8,8 @@ members = [
     "crates/fonts",
     "crates/app-resources",
     "crates/project-model",
+    "crates/look-capture",
+    "crates/capture-worker",
     "game",
     "editor",
     "tools/research",
@@ -15,7 +17,7 @@ members = [
     "xtask",
 ]
 [workspace.package]
-version = "1.2.0"
+version = "1.3.0"
 edition = "2024"
 rust-version = "1.100"
 license = "GPL-3.0-or-later"
@@ -26,9 +28,10 @@ gb-core = { path = "crates/gb-core" }
 cart-model = { path = "crates/cart-model" }
 host = { path = "crates/host" }
 i18n = { path = "crates/i18n" }
-fonts = { path = "crates/fonts" }
+fonts = { path = "crates/fonts", default-features = false }
 app-resources = { path = "crates/app-resources" }
 project-model = { path = "crates/project-model" }
+look-capture = { path = "crates/look-capture" }
 macroquad = "0.4"
 cpal = "0.15"
 png = "0.17"

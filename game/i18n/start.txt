@@ -278,3 +278,39 @@ id: Kartrid Game Boy
 ru: Картриджи Game Boy
 zh: Game Boy 卡带
 ko: 게임보이 카트리지
+
+en: Kept in this browser only: clearing its data for this site deletes them.
+es: Se guardan solo en este navegador: borrar sus datos de este sitio los elimina.
+ja: このブラウザだけに保存されます。このサイトのデータを消すと消えます。
+pt: Guardados so neste navegador: apagar os dados deste site os apaga.
+fr: Gardes dans ce navigateur seulement : effacer les donnees de ce site les supprime.
+de: Nur in diesem Browser gespeichert: Wer die Daten dieser Seite loescht, loescht sie.
+it: Salvati solo in questo browser: cancellare i dati di questo sito li elimina.
+id: Hanya disimpan di peramban ini: menghapus data situs ini akan menghapusnya.
+ru: Хранится только в этом браузере: очистка данных сайта удалит их.
+zh: 仅保存在此浏览器中：清除本网站的数据会将其删除。
+ko: 이 브라우저에만 저장됩니다. 이 사이트의 데이터를 지우면 삭제됩니다.
+
+en: To play without the browser's bars: Share, then Add to Home Screen.
+es: Para jugar sin las barras del navegador: Compartir y luego Anadir a pantalla de inicio.
+ja: ブラウザのバーなしで遊ぶには：共有から「ホーム画面に追加」。
+pt: Para jogar sem as barras do navegador: Compartilhar e depois Adicionar a Tela de Inicio.
+fr: Pour jouer sans les barres du navigateur : Partager, puis Sur l'ecran d'accueil.
+de: Ohne die Leisten des Browsers spielen: Teilen, dann Zum Home-Bildschirm.
+it: Per giocare senza le barre del browser: Condividi, poi Aggiungi alla schermata Home.
+id: Untuk bermain tanpa bilah peramban: Bagikan, lalu Tambah ke Layar Utama.
+ru: Чтобы играть без панелей браузера: Поделиться, затем На экран "Домой".
+zh: 要在没有浏览器栏的情况下游玩：分享，然后添加到主屏幕。
+ko: 브라우저 막대 없이 플레이하려면: 공유 후 홈 화면에 추가.
+
+en: Loading the cartridge...
+es: Cargando el cartucho...
+ja: カートリッジを読み込み中...
+pt: Carregando o cartucho...
+fr: Chargement de la cartouche...
+de: Modul wird geladen...
+it: Caricamento della cartuccia...
+id: Memuat kartrid...
+ru: Загрузка картриджа...
+zh: 正在载入卡带...
+ko: 카트리지를 불러오는 중...

@@ -4,6 +4,7 @@
 use super::level_panel::fit;
 use super::widgets::*;
 use crate::adapters::fs_repository::{self, ProjectError};
+use crate::adapters::platform::CAN_QUIT;
 use crate::application::save;
 use crate::domain::files;
 use crate::ports::{FileDialogs, FileKind};
@@ -63,7 +64,8 @@ impl BaseScreen {
         problems.into_iter().flatten().fold(after, |y, problem| lines(problem, x, y + 8.0, r.w - 48.0, 15.0, Severity::Error.colour()));
         let note = tr(lang, "The editor and the game share it; the file may have any name.");
         lines(note, x, r.y + r.h - 76.0, r.w - 48.0, 15.0, INFO);
-        if button(Rect::new(x, r.y + r.h - 50.0, r.w - 48.0, ROW), tr(lang, "Choose the cartridge file..."), true, 17.0) {
+        let chosen = button(Rect::new(x, r.y + r.h - 50.0, r.w - 48.0, ROW), tr(lang, "Choose the cartridge file..."), true, 17.0);
+        if chosen || dialogs.arrived() || dialogs.dropped() == Some(FileKind::Cartridge) {
             let Some(p) = dialogs.pick_cartridge() else {
                 self.no_dialog = !dialogs.available();
                 return None;
@@ -158,7 +160,7 @@ impl ProjectsScreen {
             return;
         };
         let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-        let file = std::fs::read_to_string(&path).map_err(|e| e.to_string()).and_then(|t| files::read_project(&t).map_err(|e| format!("{e:?}")));
+        let file = host::storage::read_to_string(&path).map_err(|e| e.to_string()).and_then(|t| files::read_project(&t).map_err(|e| format!("{e:?}")));
         let p = match file {
             Ok(p) => p,
             Err(e) => {
@@ -193,6 +195,9 @@ impl ProjectsScreen {
 
     fn list_frame(&mut self, dialogs: &dyn FileDialogs) -> Option<ProjectsChoice> {
         let lang = self.lang;
+        if dialogs.arrived() || dialogs.dropped() == Some(FileKind::Project) {
+            self.import(dialogs);
+        }
         let visible = 9;
         let r = panel(130.0 + visible as f32 * (ROW + 4.0) + 180.0);
         let (x, w) = (r.x + 24.0, r.w - 48.0);
@@ -216,7 +221,7 @@ impl ProjectsScreen {
         let mut open = None;
         for (i, name) in self.names.iter().enumerate().skip(self.scroll).take(visible) {
             let row = Rect::new(x, y, w, ROW);
-            let rom = host::project_rom_in(name).and_then(|p| std::fs::metadata(p).ok()).and_then(|m| m.modified().ok());
+            let rom = host::project_rom_in(name).and_then(host::storage::modified);
             if button(row, "", i == self.selected, 16.0) {
                 if i == self.selected && self.typing.is_none() {
                     open = Some(name.clone());
@@ -294,7 +299,7 @@ impl ProjectsScreen {
             if button(at(2, 0), tr(lang, "Import..."), false, 16.0) {
                 self.import(dialogs);
             }
-            if button(at(3, 0), tr(lang, "Quit"), false, 16.0) {
+            if CAN_QUIT && button(at(3, 0), tr(lang, "Quit"), false, 16.0) {
                 return Some(ProjectsChoice::Quit);
             }
             if some {
@@ -321,7 +326,7 @@ impl ProjectsScreen {
 
 /// When a project was last saved, as the screen says it.
 fn saved_when(lang: Lang, t: std::time::SystemTime) -> String {
-    let ago = std::time::SystemTime::now().duration_since(t).map(|d| d.as_secs()).unwrap_or(0);
+    let ago = host::clock::now().duration_since(t).map(|d| d.as_secs()).unwrap_or(0);
     let (n, unit) = match ago {
         0..=59 => return tr(lang, "saved just now").into(),
         60..=3599 => (ago / 60, 0),

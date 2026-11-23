@@ -14,10 +14,9 @@ mod ports;
 mod texts;
 mod ui;
 
-use adapters::file_dialogs::SystemDialogs;
 use adapters::fs_repository;
 use adapters::menu_bar::WindowMenu;
-use adapters::process_launcher::GameProcess;
+use adapters::platform::{self, Dialogs, Files, Launcher, Sound};
 use cart_model::original_points::OnMap;
 use cart_model::zone_maps::ZONES;
 use macroquad::prelude::*;
@@ -31,20 +30,22 @@ use ui::{language_menu, BaseScreen, Editor, Leave, Mode, Ports, ProjectsChoice, 
 const TITLE: &str = "SML2 6GC Editor";
 
 fn conf() -> Conf {
-    Conf { window_title: TITLE.into(), window_width: 1280, window_height: 820, window_resizable: true, high_dpi: false, icon: include!(concat!(env!("OUT_DIR"), "/window_icon.rs")), ..Default::default() }
+    platform::window_conf(TITLE)
 }
 
 #[macroquad::main(conf)]
 async fn main() {
     host::console::attach();
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let args = platform::arguments();
+    application::look_loader::set_capture(platform::CAPTURE);
+    platform::claim_keys(&ui::shortcuts::command_keys());
     let value = |f: &str| args.iter().position(|a| a == f).and_then(|i| args.get(i + 1));
     let shot = value("--screenshot").map(PathBuf::from);
     let level = value("--level").and_then(|v| v.parse::<usize>().ok());
     macroquad::input::prevent_quit();
     let mut lang = fs_repository::language();
     ui::set_text_language(lang);
-    let mut dialogs = SystemDialogs { lang, owner: TITLE };
+    let mut dialogs = Dialogs::new(lang, TITLE);
     clear_background(ui::col(3));
     next_frame().await;
     let mut menu: Box<dyn MenuBar> = match WindowMenu::attach(TITLE) {
@@ -77,7 +78,7 @@ async fn main() {
         }
     };
     // --project NAME: open that project straight away (the game's "edit in the editor")
-    let mut straight = value("--project").cloned().filter(|n| host::project_dir(n).is_dir());
+    let mut straight = value("--project").cloned().filter(|n| host::storage::is_dir(host::project_dir(n)));
     // --new-project: the project screen typing a new project's name
     let mut new_project = args.iter().any(|a| a == "--new-project");
     let mut last = Some(fs_repository::PrefsFile.load().last_project).filter(|n| !n.is_empty());
@@ -119,12 +120,12 @@ async fn main() {
         let looks = fs_repository::LookFile::for_cartridge(&opened.doc.original);
         let ports = Ports {
             store: Box::new(opened.store),
-            launcher: Box::new(GameProcess::default()),
+            launcher: Box::new(Launcher::default()),
             prefs: Box::new(fs_repository::PrefsFile),
-            dialogs: Box::new(SystemDialogs { lang, owner: TITLE }),
-            text_files: Box::new(fs_repository::TextFile),
+            dialogs: Box::new(Dialogs::new(lang, TITLE)),
+            text_files: Box::new(Files),
             menu,
-            sound: Box::new(adapters::cpal_sound::Speakers::new()),
+            sound: Box::new(Sound::new()),
             looks: Box::new(looks),
         };
         let mut ed = Editor::new(opened.doc, ports, name, lang);
@@ -147,6 +148,7 @@ async fn main() {
         let mut frames = 0;
         loop {
             ed.frame();
+            platform::set_unsaved(ed.unsaved());
             if shoot(&shot, &mut frames) {
                 return;
             }
@@ -160,6 +162,7 @@ async fn main() {
             }
             next_frame().await;
         }
+        platform::set_unsaved(false);
         menu = ed.take_menu();
         lang = fs_repository::language();
         dialogs.set_lang(lang);
@@ -171,7 +174,7 @@ async fn main() {
 /// A language chosen in the Language menu outside the editor (the project and cartridge
 /// screens): kept in `editor.cfg` and applied to the texts, the dialogs and the menu. True when
 /// it changed.
-fn choose_language(menu: &mut dyn MenuBar, lang: &mut Lang, dialogs: &mut SystemDialogs) -> bool {
+fn choose_language(menu: &mut dyn MenuBar, lang: &mut Lang, dialogs: &mut Dialogs) -> bool {
     let Some(choice) = menu.chosen().into_iter().find_map(language_menu::chosen) else { return false };
     let mut prefs = fs_repository::PrefsFile.load();
     prefs.language = choice;
@@ -191,10 +194,7 @@ fn shoot(shot: &Option<PathBuf>, frames: &mut u32) -> bool {
     if *frames < 20 {
         return false;
     }
-    if let Some(d) = p.parent() {
-        let _ = std::fs::create_dir_all(d);
-    }
-    get_screen_data().export_png(&p.to_string_lossy());
+    platform::save_screenshot(p);
     true
 }
 

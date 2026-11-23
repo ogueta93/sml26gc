@@ -245,6 +245,8 @@ pub(crate) struct Apu {
     hp: f32,
     /// Interleaved stereo samples waiting to be played.
     pub(crate) out: Vec<f32>,
+    /// Nobody listens: the channels run, but nothing is mixed (`GameBoy::set_unseen`).
+    pub(crate) unheard: bool,
 }
 
 const READ_MASK: [u8; 0x17] = [
@@ -273,6 +275,7 @@ impl Apu {
             cap_r: 0.0,
             hp: 0.999958f32.powf(cps as f32),
             out: Vec::with_capacity(4096),
+            unheard: false,
         }
     }
 
@@ -422,7 +425,9 @@ impl Apu {
                 self.ch3.step(c);
                 self.ch4.step(c);
             }
-            // Mix
+            if self.unheard {
+                continue;
+            }
             let (l, r) = if self.power {
                 let o = [self.ch1.out(), self.ch2.out(), self.ch3.out(), self.ch4.out()];
                 let pan = self.regs[0x15];

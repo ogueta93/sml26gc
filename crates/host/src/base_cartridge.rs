@@ -33,10 +33,10 @@ impl BaseProblem {
 
 /// Is the file at `path` the supported cartridge?
 pub fn check(path: &Path) -> Result<(), BaseProblem> {
-    if !path.is_file() {
+    if !crate::storage::is_file(path) {
         return Err(BaseProblem::Missing(path.to_path_buf()));
     }
-    let data = std::fs::read(path).map_err(|_| BaseProblem::Unreadable(path.to_path_buf()))?;
+    let data = crate::storage::read(path).map_err(|_| BaseProblem::Unreadable(path.to_path_buf()))?;
     if sha1_hex(&data) == SUPPORTED_SHA1 {
         Ok(())
     } else {
@@ -46,7 +46,7 @@ pub fn check(path: &Path) -> Result<(), BaseProblem> {
 
 /// The base cartridge chosen (in either program), checked.
 pub fn base_cartridge() -> Result<PathBuf, BaseProblem> {
-    let text = std::fs::read_to_string(base_cartridge_path()).map_err(|_| BaseProblem::NotChosen)?;
+    let text = crate::storage::read_to_string(base_cartridge_path()).map_err(|_| BaseProblem::NotChosen)?;
     let t = text.trim();
     if t.is_empty() {
         return Err(BaseProblem::NotChosen);
@@ -57,14 +57,31 @@ pub fn base_cartridge() -> Result<PathBuf, BaseProblem> {
 
 /// Keep `path` as the base cartridge for both programs, if it is the supported one.
 pub fn choose(path: &Path) -> Result<(), BaseProblem> {
-    check(path)?;
+    let checked = check(path);
+    let path = if cfg!(target_arch = "wasm32") { &keep_arrived(path, checked.is_ok()) } else { path };
+    checked?;
     let file = base_cartridge_path();
-    std::fs::write(&file, path.display().to_string()).map_err(|_| BaseProblem::Unreadable(file))
+    crate::storage::write(&file, path.display().to_string()).map_err(|_| BaseProblem::Unreadable(file))
+}
+
+/// In the browser the chosen file arrives in a folder of its own: it is moved into the data folder
+/// as the one cartridge kept when `accepted`, and dropped either way. Its new place.
+fn keep_arrived(path: &Path, accepted: bool) -> PathBuf {
+    let dir = crate::paths::data_dir().join("cartridge");
+    let kept = dir.join(path.file_name().unwrap_or_default());
+    if accepted {
+        if let Ok(data) = crate::storage::read(path) {
+            let _ = crate::storage::remove_dir_all(&dir);
+            let _ = crate::storage::write(&kept, data);
+        }
+    }
+    let _ = crate::storage::remove_file(path);
+    kept
 }
 
 /// The path chosen before, even if it is no longer usable (to start a file chooser there).
 pub fn chosen_before() -> Option<PathBuf> {
-    let text = std::fs::read_to_string(base_cartridge_path()).ok()?;
+    let text = crate::storage::read_to_string(base_cartridge_path()).ok()?;
     let t = text.trim();
     (!t.is_empty()).then(|| PathBuf::from(t))
 }

@@ -67,8 +67,9 @@ Why each step: `docs/DEVELOPMENT.md`, "Workflow and releases".
      This is the only time the version changes.
   2. Merge `develop` into `main` with `--no-ff`; tag that merge `vX.Y.Z`; push `main`, the tag
      and `develop`.
-  3. Build the package from `main` (`cargo xtask package <target>`) and publish it as the
-     GitHub release of the tag: the zip of each platform, the changelog's section as its text.
+  3. The tag makes GitHub build every package and a draft release of the tag with them and the
+     changelog's section (`docs/DEVELOPMENT.md`, "GitHub Actions"). Check the run passed and the
+     draft holds every file; the user publishes it, which updates the web version online.
 - Commit messages: a short summary line, then what changed and why when it is not obvious.
 - No AI attribution in commits or pull requests (no `Co-Authored-By` or "Generated with" lines).
 - Never commit cartridges or anything derived from them (see `.gitignore`).
@@ -83,6 +84,6 @@ Nothing of the game or of Nintendo goes in (`LEGAL.md`).
 ## Releases
 
 A package for another computer is only made with `cargo xtask package <target>`
-(`docs/DEVELOPMENT.md`, "Building for Windows"), never by copying from `target/release`, which
-holds the developer's own cartridge choice, projects and saves. It is published only as part of
-a release (Git workflow).
+(on GitHub by the release run, or by hand: `docs/DEVELOPMENT.md`, "Building for Windows"), never
+by copying from `target/release`, which holds the developer's own cartridge choice, projects and
+saves. It is published only as part of a release (Git workflow).

@@ -27,7 +27,8 @@ changed.
 The game also takes the cartridge file as its argument: ./{game} /path/to/game.gb
 
 To install the programs instead, with launchers in your desktop's application menu, use the
-.deb package (Debian, Ubuntu, Linux Mint and the like), from the folder that holds it:
+.deb package (Debian, Ubuntu, Linux Mint, Raspberry Pi OS and the like) of your processor,
+_amd64 on x86_64 and _arm64 on ARM, from the folder that holds it:
 
   sudo apt install ./{id}_<version>_amd64.deb     installs it and any library missing
   sudo dpkg -i {id}_<version>_amd64.deb           installs only the package; if it reports
@@ -44,8 +45,10 @@ Installing a newer version the same way replaces the older one.
 
 WHAT THE COMPUTER NEEDS
 
-  - Linux on a 64-bit x86 computer (x86_64), with glibc {glibc} or newer: Debian 11, Ubuntu 20.04,
-    Linux Mint 20, Fedora 33, openSUSE Leap 15.3 or any later version, Arch Linux.
+  - Linux on {cpu},
+    with glibc {glibc} or newer: Ubuntu 18.04, Linux Mint 19, Debian 10, RHEL, AlmaLinux and
+    Rocky Linux 8, Fedora 28, openSUSE Leap 15.3, Raspberry Pi OS (64-bit) or any later version,
+    Arch Linux.
   - A desktop with X11, or Wayland with Xwayland (every common desktop has it).
   - A graphics card with its driver supporting OpenGL 3.1 (or at least 2.1): any card of the
     last ten years with the distribution's Mesa drivers, or NVIDIA's.
@@ -55,6 +58,7 @@ WHAT THE COMPUTER NEEDS
       udev (controllers)          libudev1                        systemd-libs
       OpenGL                      libgl1                          libglvnd-glx, mesa-dri-drivers
       X11                         libx11-6, libxi6                libX11, libXi
+      keyboard (X11)              libxkbcommon0                   libxkbcommon
       D-Bus (file dialogs)        libdbus-1-3                     dbus-libs
   - Optional: a sound device (without one the game plays silently), a game controller, and a
     file dialog: the desktop portal (xdg-desktop-portal with the one of your desktop, as GNOME,

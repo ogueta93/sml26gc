@@ -1,7 +1,7 @@
 //! The bindings as pressed in one frame: the keyboard always plays, and a connected controller
 //! plays too, each with its own bindings (`Settings::input` only chooses which ones the
 //! Controls screen shows).
-use super::keys::{self, KEYS};
+use super::keys;
 use super::pad::{self, PadButton};
 use super::settings::Settings;
 use crate::ports::{Gamepad, Keyboard};
@@ -46,16 +46,6 @@ impl<'a> Bindings<'a> {
     /// The controller's guide button went down (it opens the menu anywhere).
     pub fn guide(&self) -> bool {
         self.controller() && self.pad.pressed(PadButton::Guide)
-    }
-
-    /// Binding `i`'s button while a controller is connected, else its key, as the tag names it.
-    pub fn label(&self, i: usize) -> &'static str {
-        debug_assert!(i < KEYS);
-        if self.controller() {
-            self.st.pad[i].label()
-        } else {
-            self.st.keys[i].label(self.st.lang)
-        }
     }
 }
 

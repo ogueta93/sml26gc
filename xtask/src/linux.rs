@@ -1,5 +1,6 @@
-//! The Linux packages: the executables built in a Debian 11 container (so they need no glibc
-//! newer than its 2.31), their libraries checked, the portable `.tar.gz` and the `.deb`.
+//! The Linux packages: the executables built in an Ubuntu 18.04 container of the computer's own
+//! architecture (so they need no glibc newer than its 2.27), their libraries checked, the
+//! portable `.tar.gz` and the `.deb`.
 use crate::{files_in, run, Fill};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -15,14 +16,14 @@ const INSTALLED_MARKER: &str = "installed";
 /// The `.deb`'s icon size, scaled down from `assets/icons/*.png`.
 const ICON: u32 = 256;
 
-/// Builds `programs` for `triple` with the `dist` profile in the image of `rust`'s version (made
-/// first when missing); their folder.
+/// Builds `programs` for `triple` with the `dist` profile in the image of `rust`'s version and
+/// this computer's architecture (made first when missing); their folder.
 pub fn build_in_container(root: &Path, rust: &str, triple: &str, programs: &[&str]) -> Result<PathBuf, String> {
     let docker = Command::new("docker").args(["version", "--format", "{{.Server.Version}}"]).output();
     if !docker.as_ref().is_ok_and(|o| o.status.success()) {
         return Err("the Linux packages are built in a Docker container, and Docker does not answer. Install it (Ubuntu: sudo apt install docker.io), let your user use it (sudo usermod -aG docker $USER, then log out and in) and try again (docs/DEVELOPMENT.md, \"Building for Linux\")".into());
     }
-    let image = format!("{IMAGE}:{rust}");
+    let image = format!("{IMAGE}:{rust}-{}", std::env::consts::ARCH);
     let mut build = Command::new("docker");
     build.args(["build", "--tag", &image, "--build-arg", &format!("RUST_VERSION={rust}")]).arg(root.join("packaging/linux"));
     run(build)?;
@@ -118,12 +119,12 @@ pub fn tar_folder(folder: &Path, top: &str, tar: &Path, programs: &[String]) -> 
 }
 
 /// The `.deb` of the package `folder`, built with `dpkg-deb` from a staging tree in `target/deb/`.
-pub fn deb(root: &Path, folder: &Path, fill: &Fill) -> Result<PathBuf, String> {
+pub fn deb(root: &Path, folder: &Path, fill: &Fill, arch: &str) -> Result<PathBuf, String> {
     let id = env!("PRODUCT_ID");
     if Command::new("dpkg-deb").arg("--version").output().is_err() {
         return Err("dpkg-deb is needed to write the .deb (Debian and Ubuntu have it in the dpkg package; Fedora: sudo dnf install dpkg)".into());
     }
-    let name = format!("{id}_{}_amd64", fill.version);
+    let name = format!("{id}_{}_{arch}", fill.version);
     let stage = root.join("target/deb").join(&name);
     if stage.exists() {
         std::fs::remove_dir_all(&stage).map_err(|e| format!("{}: {e}", stage.display()))?;
@@ -150,16 +151,7 @@ pub fn deb(root: &Path, folder: &Path, fill: &Fill) -> Result<PathBuf, String> {
     let copyright = std::fs::read_to_string(root.join("packaging/linux/copyright")).map_err(|e| format!("packaging/linux/copyright: {e}"))?;
     std::fs::write(doc.join("copyright"), fill.text(&copyright)).map_err(|e| e.to_string())?;
     let size_kb = files_in(&stage)?.iter().map(|(f, _)| std::fs::metadata(f).map_or(0, |m| m.len())).sum::<u64>().div_ceil(1024);
-    let control = format!(
-        "Package: {id}\nVersion: {}\nArchitecture: amd64\nMaintainer: {}\nInstalled-Size: {size_kb}\nDepends: libc6 (>= {}), libasound2t64 | libasound2, libudev1, libgl1, libx11-6, libxi6\nRecommends: xdg-desktop-portal | zenity\nSection: otherosfs\nPriority: optional\nHomepage: {}\nDescription: {}\n {}\n .\n {}\n",
-        fill.version,
-        env!("PRODUCT_MAINTAINER"),
-        fill.glibc.as_deref().ok_or("no glibc version for the .deb")?,
-        env!("PRODUCT_SOURCE"),
-        "emulator and level editor for Super Mario Land 2",
-        "Plays Super Mario Land 2: 6 Golden Coins from the user's own cartridge file on\n an emulated Game Boy, and edits its levels, objects and world map into a copy\n of it.",
-        "No game is included: the programs ask for a cartridge file the user owns.\n Not affiliated with or endorsed by Nintendo."
-    );
+    let control = control(&fill.version, arch, fill.glibc.as_deref().ok_or("no glibc version for the .deb")?, size_kb);
     std::fs::write(stage.join("DEBIAN/control"), control).map_err(|e| e.to_string())?;
     set_modes(&stage, &fill.programs)?;
     let deb = root.join("dist").join(format!("{name}.deb"));
@@ -167,6 +159,19 @@ pub fn deb(root: &Path, folder: &Path, fill: &Fill) -> Result<PathBuf, String> {
     c.args(["--root-owner-group", "-Zxz", "--build"]).arg(&stage).arg(&deb);
     run(c)?;
     Ok(deb)
+}
+
+/// The `.deb`'s `DEBIAN/control`.
+fn control(version: &str, arch: &str, glibc: &str, size_kb: u64) -> String {
+    format!(
+        "Package: {}\nVersion: {version}\nArchitecture: {arch}\nMaintainer: {}\nInstalled-Size: {size_kb}\nDepends: libc6 (>= {glibc}), libasound2t64 | libasound2, libudev1, libgl1, libx11-6, libxi6, libxkbcommon0\nRecommends: xdg-desktop-portal | zenity\nSection: otherosfs\nPriority: optional\nHomepage: {}\nDescription: {}\n {}\n .\n {}\n",
+        env!("PRODUCT_ID"),
+        env!("PRODUCT_MAINTAINER"),
+        env!("PRODUCT_SOURCE"),
+        "emulator and level editor for Super Mario Land 2",
+        "Plays Super Mario Land 2: 6 Golden Coins from the user's own cartridge file on\n an emulated Game Boy, and edits its levels, objects and world map into a copy\n of it.",
+        "No game is included: the programs ask for a cartridge file the user owns.\n Not affiliated with or endorsed by Nintendo."
+    )
 }
 
 fn copy_tree(from: &Path, to: &Path) -> Result<(), String> {
@@ -241,5 +246,11 @@ mod tests {
     fn glibc_versions() {
         assert_eq!((glibc_version("GLIBC_2.31"), glibc_version("GLIBC_2.2.5"), glibc_version("GLIBC_2.3")), (Some((2, 31)), Some((2, 2)), Some((2, 3))));
         assert_eq!((glibc_version("GLIBC_PRIVATE"), glibc_version("GCC_3.0")), (None, None));
+    }
+
+    #[test]
+    fn the_control_file_names_the_architecture() {
+        let c = control("1.3.0", "arm64", "2.27", 9000);
+        assert!(c.contains("\nArchitecture: arm64\n") && c.contains("Depends: libc6 (>= 2.27),") && c.contains("libxkbcommon0\nRecommends") && c.starts_with("Package: sml26gc\nVersion: 1.3.0\n"), "{c}");
     }
 }

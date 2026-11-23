@@ -7,19 +7,31 @@ on a supported platform, with only what the programs need and the notices they m
 ## Requirements
 
 ### Requirement: One command builds a platform's package
-A single command run from the repository, naming a platform target (`windows-x64`, `linux-x64` or `macos-universal`), SHALL build the editor and the game for that target in release, assemble the package folder `dist/<target>/sml26gc/` from an empty folder each time, and write the target's packages (see "Each platform's packages"). An unknown target SHALL stop with a message listing the known ones, and nothing SHALL be written.
+A single command run from the repository, naming a platform target (`windows-x64`, `windows-arm64`, `linux-x64`, `linux-arm64`, `macos-universal` or `web`), SHALL build the editor and the game for that target in release, assemble the package folder `dist/<target>/sml26gc/` from an empty folder each time, and write the target's packages (see "Each platform's packages"). An unknown target SHALL stop with a message listing the known ones, and nothing SHALL be written.
 
 #### Scenario: Building the Windows package
 - **WHEN** the developer runs the package command for `windows-x64`
 - **THEN** `dist/windows-x64/sml26gc/` holds the editor and the game built in release, and `dist/sml26gc-<version>-windows-x64.zip` holds that folder
 
+#### Scenario: Building the Windows ARM package
+- **WHEN** the package command for `windows-arm64` is run on Windows on ARM
+- **THEN** `dist/windows-arm64/sml26gc/` holds the editor and the game built in release for ARM64, and `dist/sml26gc-<version>-windows-arm64.zip` holds that folder
+
 #### Scenario: Building the Linux packages
 - **WHEN** the developer runs the package command for `linux-x64` on Linux
 - **THEN** `dist/linux-x64/sml26gc/` holds the editor and the game built in release, `dist/sml26gc-<version>-linux-x64.tar.gz` holds that folder with both programs executable, and `dist/sml26gc_<version>_amd64.deb` installs them as `release/linux-install` says
 
+#### Scenario: Building the Linux ARM packages
+- **WHEN** the package command for `linux-arm64` is run on 64-bit ARM Linux
+- **THEN** `dist/sml26gc-<version>-linux-arm64.tar.gz` and `dist/sml26gc_<version>_arm64.deb` hold the ARM64 editor and game as the x86-64 ones do
+
 #### Scenario: Building the macOS package
 - **WHEN** the developer runs the package command for `macos-universal` on a Mac
 - **THEN** `dist/macos-universal/sml26gc/` holds the two app bundles built in release, and `dist/sml26gc-<version>-macos-universal.zip` holds that folder with the bundles intact (executable, signed)
+
+#### Scenario: Building the web package
+- **WHEN** the developer runs the package command for `web` on Linux, Windows or macOS
+- **THEN** `dist/web/sml26gc/` holds the web game built in release, and `dist/sml26gc-<version>-web.zip` holds that folder
 
 #### Scenario: An unknown target
 - **WHEN** the package command is run for `amiga`
@@ -84,19 +96,19 @@ The product name, the short id, the version and the list of platform targets SHA
 - **THEN** the zip is named with `0.2.0`, both executables' Properties show `0.2.0`, and no text of the package names a version
 
 ### Requirement: The package says what a computer needs
-Each platform's read-me SHALL say what a computer needs to run the programs and that nothing else needs installing, and SHALL say, for each way a program can fail to start or work, its cause and what to do.
+Each platform's read-me SHALL say what a computer needs to run the programs and that nothing else needs installing, and SHALL say, for each way a program can fail to start or work, its cause and what to do. The read-me of each architecture's package SHALL name its own processor.
 
 #### Scenario: A computer without a graphics driver
-- **WHEN** the game closes at once on a fresh Windows 11 without its graphics driver
+- **WHEN** the game closes at once on a fresh Windows 10 or 11 without its graphics driver
 - **THEN** the package's read-me names the cause and how to get the driver or the OpenGL Compatibility Pack
 
 #### Scenario: What the read-me covers
-- **WHEN** the read-me is read
-- **THEN** it gives the Windows version, the graphics driver (OpenGL 3.1, at least 2.1), the optional sound device and controller, how to see a program's messages from a terminal, and what to do for SmartScreen, a missing or old graphics driver (the maker's driver, 3D acceleration in a virtual machine, the OpenGL Compatibility Pack, Remote Desktop), a missing Visual C++ runtime (the redistributable to download), a folder that cannot be written, a refused cartridge, no sound and a controller that does nothing
+- **WHEN** the Windows read-me is read
+- **THEN** it gives the Windows versions (10 or 11, 64-bit) and the processor (x86-64, or ARM for the ARM package, which also says the x86-64 one runs there through emulation), the graphics driver (OpenGL 3.1, at least 2.1), the optional sound device and controller, how to see a program's messages from a terminal, and what to do for SmartScreen, a missing or old graphics driver (the maker's driver, 3D acceleration in a virtual machine, the OpenGL Compatibility Pack, Remote Desktop), a missing Visual C++ runtime (the redistributable to download), a folder that cannot be written, a refused cartridge, no sound and a controller that does nothing
 
 #### Scenario: What the Linux read-me covers
 - **WHEN** the Linux package's read-me is read
-- **THEN** it gives the oldest glibc (2.31) and example distributions (Debian 11, Ubuntu 20.04 and later, Fedora, Mint, Arch), the libraries the programs use with the Debian/Ubuntu and Fedora packages that provide them, the graphics driver (OpenGL 3.1, at least 2.1), the optional sound device, controller and file dialog (desktop portal or zenity), how to unpack and start the programs from a terminal or the file manager, how to install the `.deb` instead, and what to do for a program that is not executable, a missing library, a missing or old graphics driver, a folder that cannot be written, no file dialog, a refused cartridge, no sound and a controller that does nothing (access to `/dev/input`)
+- **THEN** it gives the processor (x86-64, or 64-bit ARM such as a Raspberry Pi 4 or 5 with a 64-bit system), the oldest glibc (2.27) and example distributions (Ubuntu 18.04, Mint 19, Debian 10, RHEL, AlmaLinux and Rocky Linux 8 and later, Fedora, Arch), the libraries the programs use with the Debian/Ubuntu and Fedora packages that provide them, the graphics driver (OpenGL 3.1, at least 2.1), the optional sound device, controller and file dialog (desktop portal or zenity), how to unpack and start the programs from a terminal or the file manager, how to install the `.deb` instead, and what to do for a program that is not executable, a missing library, a missing or old graphics driver, a folder that cannot be written, no file dialog, a refused cartridge, no sound and a controller that does nothing (access to `/dev/input`)
 
 #### Scenario: What the macOS read-me covers
 - **WHEN** the macOS package's read-me is read
@@ -136,14 +148,18 @@ A legal notice (`LEGAL.md`), also in each package, SHALL state what is and is no
 - **THEN** it says no game or Nintendo material is included, gives the grounds (study and interoperability of programs, the user's own backup, changes for one's own use, names used only to say what the programs work with), says nobody makes money from the project, that each person answers for their use and their cartridge file's origin, and gives the author's contact
 
 ### Requirement: Each platform's packages
-The Windows target SHALL write `dist/sml26gc-<version>-windows-x64.zip` holding the package folder. The Linux target SHALL write `dist/sml26gc-<version>-linux-x64.tar.gz` holding the package folder with both programs executable, and `dist/sml26gc_<version>_amd64.deb` holding the same files placed as `release/linux-install` says, plus its launchers and icons.
+Each Windows target SHALL write `dist/sml26gc-<version>-<target>.zip` holding the package folder. Each Linux target SHALL write `dist/sml26gc-<version>-<target>.tar.gz` holding the package folder with both programs executable, and `dist/sml26gc_<version>_<arch>.deb` (`amd64` for `linux-x64`, `arm64` for `linux-arm64`) holding the same files placed as `release/linux-install` says, plus its launchers and icons.
 
 #### Scenario: The Linux packages' contents
 - **WHEN** the Linux packages are built
 - **THEN** unpacking the `.tar.gz` gives `sml26gc/` with `sml26gc` and `sml26gc_editor` executable, and the `.deb`'s file list holds the same executables, texts, manuals and licences plus two launchers and two icons
 
+#### Scenario: The ARM .deb's architecture
+- **WHEN** `dist/sml26gc_<version>_arm64.deb` is inspected with `dpkg-deb --info`
+- **THEN** its architecture is `arm64`, and its executables are ARM64
+
 ### Requirement: The Linux executables' libraries are checked
-When building the Linux packages, the package command SHALL stop, naming the library, if either executable needs a shared library outside the set the Linux read-me names, and SHALL stop if they need a glibc newer than 2.31, naming the version and the symbol's library. The oldest glibc they need SHALL be printed and stated in the read-me and the `.deb`'s dependencies.
+When building the Linux packages, the package command SHALL stop, naming the library, if either executable needs a shared library outside the set the Linux read-me names (with the architecture's own dynamic loader), and SHALL stop if they need a glibc newer than 2.27, naming the version and the symbol's library. The oldest glibc they need SHALL be printed and stated in the read-me and the `.deb`'s dependencies.
 
 #### Scenario: An unexpected library
 - **WHEN** a dependency makes the editor link against `libgtk-3.so.0` and the Linux package is built
@@ -151,18 +167,22 @@ When building the Linux packages, the package command SHALL stop, naming the lib
 
 #### Scenario: The glibc version
 - **WHEN** the Linux package is built on Ubuntu 24.04
-- **THEN** the command prints a glibc of at most 2.31, and the `.deb` depends on `libc6` of at least that version
+- **THEN** the command prints a glibc of at most 2.27, and the `.deb` depends on `libc6` of at least that version
 
 #### Scenario: Executables built against a newer glibc
 - **WHEN** the Linux executables were linked against glibc 2.39
-- **THEN** the command stops, says they need glibc 2.39 where 2.31 is the limit, and writes no package
+- **THEN** the command stops, says they need glibc 2.39 where 2.27 is the limit, and writes no package
 
-### Requirement: Linux packages built in a Debian 11 container
-The package command for `linux-x64` SHALL build the game and the editor inside a Docker container of Debian 11 (glibc 2.31) holding the C toolchain, the ALSA and udev headers and the workspace's Rust version, building that image first when missing or outdated. The files it writes SHALL belong to the developer, not root. Without a usable Docker it SHALL stop before building, saying how to install Docker and get access to it.
+### Requirement: Linux packages built in an Ubuntu 18.04 container
+The package command for each Linux target SHALL build the game and the editor inside a Docker container of Ubuntu 18.04 (glibc 2.27) for its own architecture, holding the C toolchain, the ALSA and udev headers and the workspace's Rust version, building that image first when missing or outdated. The files it writes SHALL belong to the developer, not root. Without a usable Docker it SHALL stop before building, saying how to install Docker and get access to it.
 
 #### Scenario: Packaging on Ubuntu 24.04
 - **WHEN** the developer runs the package command for `linux-x64` on Ubuntu 24.04 with Docker
-- **THEN** the executables are built in the Debian 11 container, the packages are written to `dist/`, and every file written is owned by the developer
+- **THEN** the executables are built in the Ubuntu 18.04 container, the packages are written to `dist/`, and every file written is owned by the developer
+
+#### Scenario: Packaging on ARM
+- **WHEN** the package command for `linux-arm64` is run on 64-bit ARM Linux with Docker
+- **THEN** the executables are built in the ARM64 Ubuntu 18.04 container, natively, not through emulation
 
 #### Scenario: Docker missing
 - **WHEN** the package command for `linux-x64` is run where `docker` is not installed, or the developer cannot use it
@@ -204,3 +224,24 @@ When building the macOS package, the package command SHALL build each program fo
 #### Scenario: Packaging off a Mac
 - **WHEN** the package command for `macos-universal` is run on Linux
 - **THEN** it says the macOS package is built on macOS and writes nothing
+
+### Requirement: The web package's contents
+The web package folder SHALL hold exactly: the game's page (`index.html`), the editor's page (`editor.html`), their WebAssembly programs and the editor's capture workers' one, the loader, the pages' script and the workers' script, the fonts loaded on demand, the web app manifest and its icons, a read-me, the cartridge notice, the licence text, the legal notice, the changelog, the user manuals of the game and the editor and the licences folder. It SHALL NOT hold source files, cartridges or anything made from one, or any saved data.
+
+#### Scenario: Listing the web package
+- **WHEN** the web package folder is listed
+- **THEN** it holds `index.html`, `editor.html`, the `.wasm` and `.js` files, `fonts/`, `manifest.webmanifest`, `icons/`, `README.txt`, `NO-CARTRIDGE.txt`, `LICENSE.txt`, `LEGAL.md`, `CHANGELOG.md`, `manuals/` (`GAME.md`, `EDITOR.md`) and `licenses/`, and nothing else
+
+### Requirement: The web read-me
+The web package's read-me SHALL say which browsers play it, how to serve it, where the cartridge and the data are kept, and what to do for each way it can fail to start or work.
+
+#### Scenario: What the web read-me covers
+- **WHEN** the web package's read-me is read
+- **THEN** it gives the browsers, that it must be served by a web server, how to serve it on one's own computer (an example command for Windows, Linux and macOS) and on any static web host over HTTPS, that the cartridge stays in the browser, that the data is kept in the browser and clearing the site's data removes it, how to add it to a phone's home screen, and what to do for a page that stays empty, no sound (the iPhone's silent switch), a refused cartridge and a controller that does nothing
+
+### Requirement: A target is built on its own system and processor
+A desktop target run on another system or another processor architecture than its own SHALL stop, saying which system and architecture it is built on, and nothing SHALL be written.
+
+#### Scenario: An ARM target on the wrong processor
+- **WHEN** the package command for `linux-arm64` is run on an x86-64 Linux computer
+- **THEN** it says the target is built on 64-bit ARM Linux and writes nothing

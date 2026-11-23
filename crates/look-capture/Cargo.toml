@@ -1,0 +1,12 @@
+[package]
+name = "look-capture"
+description = "One object picture or tiles capture, and its result as a line of the editor's look cache."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+gb-core.workspace = true
+cart-model.workspace = true

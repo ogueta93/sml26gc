@@ -7,19 +7,22 @@
 //! flag), `secret` (from version 3: `-`, `point` n or `newzone` k), `tables` (from version 4,
 //! in projects from version 6: gravity, scroll, camera, animation; `level_tables`), `enemies`
 //! (from version 5, in projects from version 7: `-`, or the count, each enemy's level and type,
-//! and the sprite block in hex; `enemy_sets`). A new zone: `base`, `name`, `entry`, `door`, `picture` (18 rows of 20 tiles), `points`
+//! and the sprite block in hex; `enemy_sets`). A new zone: `base`, `name`, `entry`, `door`, `music` (zone files from
+//! version 4, projects from version 9), `picture` (18 rows of 20 tiles), `points`
 //! (number, place, level, flag, shut, pass point code, the four ways) and `exits`. A project:
 //! the cartridge's hash, every level as above, the world and zone pictures, the level each
 //! map point opens, the paths, where Mario stands on each point, the new points, the doors,
 //! (from version 2) the new zones and (from version 4) all 256 point numbers and the game
 //! zones' added points (`zonepoints`: per zone, its number and its points as a new zone's),
-//! and (from version 5) the pad directions the world map's added points shut (`shuts`).
+//! (from version 5) the pad directions the world map's added points shut (`shuts`), and (from
+//! version 9) the music of the world map and of each zone map (`music`).
 use super::document::{EnemySet, RestorePoint, StandIn};
 use cart_model::start_point::Start;
 use cart_model::enemy_sets::{Enemy, BLOCK};
 use cart_model::added_points::{self, ZoneAdded};
 use cart_model::doors::{Doors, Leads};
 use cart_model::level_tables::Tables;
+use cart_model::map_music::{self, Map};
 use cart_model::levels::{LEVELS, MAP_BYTES};
 use cart_model::map_routes::{self, MapRoutes, Place, Way};
 use cart_model::new_zones::{self, NewZone, ZonePoint};
@@ -31,20 +34,20 @@ use std::fmt::Write;
 const LEVEL_KIND: &str = "NMB level";
 const PROJECT_KIND: &str = "NMB project";
 const WORLD_KIND: &str = "NMB world";
-/// Version 1 has no Mario's start.
-const WORLD_VERSION: u32 = 2;
+/// Version 1 has no Mario's start, version 2 no music.
+const WORLD_VERSION: u32 = 3;
 const ZONE_KIND: &str = "NMB zone";
 const RESTORE_KIND: &str = "NMB restore points";
 const RESTORE_VERSION: u32 = 1;
 /// Version 1 has no names, version 2 no secret exit target, version 3 no tables, version 4
 /// no enemy set, version 5 no origin.
 const LEVEL_VERSION: u32 = 6;
-/// Version 1 has no Mario's start, version 2 no origin.
-const ZONE_VERSION: u32 = 3;
+/// Version 1 has no Mario's start, version 2 no origin, version 3 no music.
+const ZONE_VERSION: u32 = 4;
 /// Version 1 has no new zones, version 2 no secret exit targets, version 5 no level tables,
 /// version 6 no enemy sets.
-/// Version 7 has no Mario's start (the game's own).
-const PROJECT_VERSION: u32 = 8;
+/// Version 7 has no Mario's start (the game's own), version 8 no maps' music (the game's).
+const PROJECT_VERSION: u32 = 9;
 /// Point levels a project file kept before version 4.
 const OLD_LEVELS: usize = 0x82;
 const MAP_ROW: usize = 256;
@@ -103,8 +106,13 @@ pub struct ProjectFile {
     pub zone_points: Vec<ZoneAdded>,
     /// The pad directions the world map's added points shut, from `added_points::FIRST`
     /// (from version 5).
-    pub shuts: Vec<u8>,    /// Mario's start (from version 8; before, the game's own).
+    pub shuts: Vec<u8>,
+    /// Mario's start (from version 8; before, the game's own).
     pub start: Start,
+    /// The world map's music (from version 9; before, the game's).
+    pub world_music: u8,
+    /// The game zones' music, in `zone_maps::ZONES` order (from version 9; before, the game's).
+    pub zone_music: Vec<u8>,
 }
 
 
@@ -120,6 +128,8 @@ pub struct WorldFile {
     pub shuts: Vec<u8>,
     /// Mario's start, when it is on the world map (from version 2).
     pub start: Option<u8>,
+    /// Its music (from version 3; before, the game's).
+    pub music: u8,
 }
 
 /// Tells cartridges apart (64-bit FNV-1a of the whole image).
@@ -247,7 +257,7 @@ fn exit_line(out: &mut String, at: u8, leads: Leads) {
 }
 
 fn zone_block(out: &mut String, z: &NewZone) {
-    let _ = writeln!(out, "base {:02x}\nname {}\nentry {:02x}\ndoor {:02x}\npicture", z.base, z.name, z.entry, z.door);
+    let _ = writeln!(out, "base {:02x}\nname {}\nentry {:02x}\ndoor {:02x}\nmusic {:02x}\npicture", z.base, z.name, z.entry, z.door, z.music);
     rows(out, &z.picture, zone_maps::W);
     point_lines(out, &z.points);
     let _ = writeln!(out, "exits {}", z.exits.len());
@@ -282,7 +292,7 @@ pub fn read_zone(text: &str) -> Result<(NewZone, Option<u8>, String), FileError>
     let mut r = Reader::new(text);
     let version = r.kind(ZONE_KIND, ZONE_VERSION, FileError::NotZone)?;
     let origin = if version >= 3 { r.origin()? } else { String::new() };
-    let z = r.zone()?;
+    let z = r.zone(version >= 4)?;
     let start = r.start_line()?;
     r.end()?;
     Ok((z, start, origin))
@@ -334,7 +344,7 @@ pub fn read_restore_points(text: &str) -> Result<RestorePoints, FileError> {
             ("zone", Ok(k)) => {
                 let version = r.kind(ZONE_KIND, ZONE_VERSION, r.damaged())?;
                 let origin = if version >= 3 { r.origin()? } else { String::new() };
-                let file = r.zone()?;
+                let file = r.zone(version >= 4)?;
                 r.start_line()?;
                 r.end()?;
                 points.zones.push((k, RestorePoint { file, origin }));
@@ -374,6 +384,7 @@ pub fn project_text(p: &ProjectFile) -> String {
     }
     let _ = writeln!(out, "shuts {}", hex(&p.shuts));
     let _ = writeln!(out, "start {:02x} {}", p.start.point, p.start.new_zone.map_or("-".to_string(), |k| format!("{k:02x}")));
+    let _ = writeln!(out, "music {:02x} {}", p.world_music, hex(&p.zone_music));
     out.push_str("end\n");
     out
 }
@@ -407,6 +418,7 @@ pub fn world_text(w: &WorldFile) -> String {
     rows(&mut out, &w.world, world::W);
     map_lines(&mut out, &w.points, &w.routes, &w.doors);
     let _ = writeln!(out, "shuts {}", hex(&w.shuts));
+    let _ = writeln!(out, "music {:02x}", w.music);
     start_line(&mut out, w.start);
     out.push_str("end\n");
     out
@@ -414,7 +426,7 @@ pub fn world_text(w: &WorldFile) -> String {
 
 pub fn read_world(text: &str) -> Result<WorldFile, FileError> {
     let mut r = Reader::new(text);
-    r.kind(WORLD_KIND, WORLD_VERSION, FileError::NotWorld)?;
+    let version = r.kind(WORLD_KIND, WORLD_VERSION, FileError::NotWorld)?;
     let cartridge = r.hex::<u64>("cartridge")?;
     r.word("world")?;
     let world = r.rows(world::H, world::W)?;
@@ -424,9 +436,10 @@ pub fn read_world(text: &str) -> Result<WorldFile, FileError> {
         return Err(r.damaged());
     }
     shuts.resize(added_points::MAX, 0);
+    let music = if version >= 3 { r.hex::<u8>("music")? } else { map_music::game_music(Map::World) };
     let start = r.start_line()?;
     r.end()?;
-    Ok(WorldFile { cartridge, world, points, routes, doors, shuts, start })
+    Ok(WorldFile { cartridge, world, points, routes, doors, shuts, start, music })
 }
 
 pub fn read_project(text: &str) -> Result<ProjectFile, FileError> {
@@ -450,7 +463,7 @@ pub fn read_project(text: &str) -> Result<ProjectFile, FileError> {
         if n > new_zones::MAX {
             return Err(r.damaged());
         }
-        (0..n).map(|_| r.zone()).collect::<Result<Vec<_>, _>>()?
+        (0..n).map(|_| r.zone(version >= 9)).collect::<Result<Vec<_>, _>>()?
     } else {
         Vec::new()
     };
@@ -466,8 +479,14 @@ pub fn read_project(text: &str) -> Result<ProjectFile, FileError> {
     }
     shuts.resize(added_points::MAX, 0);
     let start = if version >= 8 { r.start()? } else { Start::default() };
+    let (world_music, zone_music) = if version >= 9 { r.music()? } else { game_music() };
     r.end()?;
-    Ok(ProjectFile { cartridge, levels, world, zones, points, routes, doors, new_zones, entries, zone_points, shuts, start })
+    Ok(ProjectFile { cartridge, levels, world, zones, points, routes, doors, new_zones, entries, zone_points, shuts, start, world_music, zone_music })
+}
+
+/// The game's own music of the world map and of each zone map.
+pub fn game_music() -> (u8, Vec<u8>) {
+    (map_music::game_music(Map::World), (0..zone_maps::ZONES.len()).map(|z| map_music::game_music(Map::Zone(z))).collect())
 }
 
 struct Reader<'a> {
@@ -490,6 +509,18 @@ impl<'a> Reader<'a> {
             return Ok(None);
         }
         self.hex::<u8>("start").map(Some)
+    }
+
+    /// A project's `music ww zz..`: the world map's, then each game zone's.
+    fn music(&mut self) -> Result<(u8, Vec<u8>), FileError> {
+        let line = self.line()?;
+        let mut parts = line.strip_prefix("music ").ok_or_else(|| self.damaged())?.split_whitespace();
+        let world = parts.next().and_then(|p| u8::from_str_radix(p, 16).ok()).ok_or_else(|| self.damaged())?;
+        let zones = self.bytes(parts.next().unwrap_or(""))?;
+        if zones.len() != zone_maps::ZONES.len() {
+            return Err(self.damaged());
+        }
+        Ok((world, zones))
     }
 
     /// A project's `start pp zz` (`-`: not in a new zone).
@@ -709,12 +740,14 @@ impl<'a> Reader<'a> {
 
     /// A new zone: its points within its base's numbers, one of them the entry, an exit for
     /// each of its base's exit sites.
-    fn zone(&mut self) -> Result<NewZone, FileError> {
+    /// Without `music` (older files) it has its base's game music.
+    fn zone(&mut self, music: bool) -> Result<NewZone, FileError> {
         let base = self.hex::<u8>("base")? as usize;
         let b = new_zones::base_of(base).ok_or(FileError::NotABase(base))?;
         let name = self.name()?;
         let entry = self.hex::<u8>("entry")?;
         let door = self.hex::<u8>("door")?;
+        let music = if music { self.hex::<u8>("music")? } else { map_music::game_music(Map::Zone(base)) };
         self.word("picture")?;
         let picture = self.rows(zone_maps::H, zone_maps::W)?;
         let n = self.number("points")?;
@@ -726,7 +759,7 @@ impl<'a> Reader<'a> {
             return Err(self.damaged());
         }
         let exits = (0..self.count("exits", new_zones::exit_sites(b).len())?).map(|_| self.exit()).collect::<Result<Vec<_>, _>>()?;
-        Ok(NewZone { base, picture, points, entry, exits, door, name })
+        Ok(NewZone { base, picture, points, entry, exits, door, name, music })
     }
 
     /// A game zone's added points: numbered from $80, at most `added_points::MAX`.
@@ -830,6 +863,8 @@ mod tests {
             zone_points: vec![ZoneAdded { zone: 1, points: vec![ZonePoint { number: 0x80, flag: 0x80, ..zone().points[0].clone() }] }],
             shuts: (0..added_points::MAX).map(|j| if j == 0 { 0x90 } else { 0 }).collect(),
             start: Start { point: 0x29, new_zone: None },
+            world_music: 0x14,
+            zone_music: vec![0x10, 0x28, 0x05, 0x1C, 0x12, 0x1B, 0x0E, 0x0D],
         }
     }
 
@@ -842,17 +877,20 @@ mod tests {
         ];
         let sites = new_zones::exit_sites(&new_zones::BASES[0]).len();
         let exits = (0..sites).map(|i| (0x25, if i == 0 { Leads::World(0x19) } else { Leads::NewZone(0) })).collect();
-        NewZone { base: 0, picture: (0..zone_maps::W * zone_maps::H).map(|i| i as u8).collect(), points, entry: 0x23, exits, door: 0x19, name: "Big tree".into() }
+        NewZone { base: 0, picture: (0..zone_maps::W * zone_maps::H).map(|i| i as u8).collect(), points, entry: 0x23, exits, door: 0x19, name: "Big tree".into(), music: 0x28 }
     }
 
     #[test]
     fn a_zone_comes_back_as_it_was_written() {
         let z = zone();
         let text = zone_text(&z, None, "Demo|newzone 1 Big tree");
-        assert!(text.starts_with("NMB zone 3\norigin Demo|newzone 1 Big tree\nbase 00\nname Big tree\n") && text.ends_with("end\n"));
+        assert!(text.starts_with("NMB zone 4\norigin Demo|newzone 1 Big tree\nbase 00\nname Big tree\nentry 23\ndoor 19\nmusic 28\n") && text.ends_with("end\n"));
         assert_eq!(read_zone(&text), Ok((z.clone(), None, "Demo|newzone 1 Big tree".into())));
         assert_eq!(read_zone(&zone_text(&z, Some(0x21), "")), Ok((z.clone(), Some(0x21), String::new())), "with Mario's start");
-        let v2 = text.replace("NMB zone 3", "NMB zone 2").replace("origin Demo|newzone 1 Big tree\n", "");
+        let v3 = text.replace("NMB zone 4", "NMB zone 3").replace("music 28\n", "");
+        let z = NewZone { music: 0x10, ..z };
+        assert_eq!(read_zone(&v3), Ok((z.clone(), None, "Demo|newzone 1 Big tree".into())), "a version 3 file has its base's music");
+        let v2 = v3.replace("NMB zone 3", "NMB zone 2").replace("origin Demo|newzone 1 Big tree\n", "");
         assert_eq!(read_zone(&v2), Ok((z.clone(), None, String::new())), "a version 2 file has no origin");
         assert_eq!(read_zone(&v2.replace("NMB zone 2", "NMB zone 1")), Ok((z, None, String::new())), "a version 1 file");
     }
@@ -864,7 +902,7 @@ mod tests {
         assert_eq!(read_zone(&text.replace("base 00", "base 04")), Err(FileError::NotABase(4)));
         assert!(matches!(read_zone(&text.replace("entry 23", "entry 24")), Err(FileError::Damaged(_))), "the entry is one of its points");
         assert!(matches!(read_zone(&text.replace("\n25 ", "\n32 ")), Err(FileError::Damaged(_))), "points stay in the base's numbers");
-        assert_eq!(read_zone(&text.replace("NMB zone 3", "NMB zone 4")), Err(FileError::Newer));
+        assert_eq!(read_zone(&text.replace("NMB zone 4", "NMB zone 5")), Err(FileError::Newer));
         assert_eq!(read_zone(&level_text(&level(0), "")), Err(FileError::NotZone));
     }
 
@@ -931,14 +969,22 @@ mod tests {
     #[test]
     fn a_project_comes_back_as_it_was_written() {
         let p = project();
-        assert_eq!(read_project(&project_text(&p)), Ok(p));
+        let text = project_text(&p);
+        assert!(text.contains("\nmusic 14 1028051c121b0e0d\nend\n") && text.contains("door 19\nmusic 28\n"));
+        assert_eq!(read_project(&text), Ok(p.clone()));
+        let v8 = text.replacen("NMB project 9", "NMB project 8", 1).replacen("music 14 1028051c121b0e0d\n", "", 1).replacen("music 28\n", "", 1);
+        let (world_music, zone_music) = game_music();
+        let new_zones = vec![NewZone { music: 0x10, ..zone() }];
+        assert_eq!(read_project(&v8), Ok(ProjectFile { world_music, zone_music, new_zones, ..p }), "version 8 has the game's music");
     }
 
     #[test]
     fn world_files_round_trip_and_are_not_projects() {
         let p = project();
-        let w = WorldFile { cartridge: p.cartridge, world: p.world.clone(), points: p.points.clone(), routes: p.routes.clone(), doors: p.doors.clone(), shuts: p.shuts.clone(), start: Some(0x07) };
+        let w = WorldFile { cartridge: p.cartridge, world: p.world.clone(), points: p.points.clone(), routes: p.routes.clone(), doors: p.doors.clone(), shuts: p.shuts.clone(), start: Some(0x07), music: 0x28 };
         assert_eq!(read_world(&world_text(&w)), Ok(w.clone()));
+        let v2 = world_text(&w).replacen("NMB world 3", "NMB world 2", 1).replacen("music 28\n", "", 1);
+        assert_eq!(read_world(&v2), Ok(WorldFile { music: 0x06, ..w.clone() }), "a version 2 file has the game's music");
         assert_eq!(read_world(&project_text(&p)), Err(FileError::NotWorld));
         assert_eq!(read_project(&world_text(&w)), Err(FileError::NotProject));
     }
@@ -952,13 +998,13 @@ mod tests {
         p.routes.places.truncate(map_routes::POINTS);
         p.routes.added.retain(|&a| a < 0x80);
         let text = project_text(&p);
-        let old = format!("{}end\n", &text[..text.find("entries").unwrap()]).replacen("NMB project 8", "NMB project 1", 1);
+        let old = format!("{}end\n", &text[..text.find("entries").unwrap()]).replacen("NMB project 9", "NMB project 1", 1);
         let old: String = old.lines().filter(|l| !l.starts_with("name ") && !l.starts_with("secret ") && !l.starts_with("tables ") && !l.starts_with("enemies ")).map(|l| format!("{l}\n")).collect();
         let levels = p.levels.iter().map(|l| LevelFile { name: String::new(), secret: None, tables: None, enemies: None, ..l.clone() }).collect();
         p.points.resize(world::POINT_COUNT, world::NO_LEVEL);
         p.routes.ways.resize(map_routes::ALL, Default::default());
         p.routes.places.resize(map_routes::ALL, Place { cam_x: 0, cam_y: 0, x: 0, y: 0, rest: [0, 0] });
-        assert_eq!(read_project(&old), Ok(ProjectFile { new_zones: Vec::new(), entries: Vec::new(), zone_points: Vec::new(), shuts: vec![0; added_points::MAX], start: Start::default(), levels, ..p }));
+        assert_eq!(read_project(&old), Ok(ProjectFile { new_zones: Vec::new(), entries: Vec::new(), zone_points: Vec::new(), shuts: vec![0; added_points::MAX], start: Start::default(), world_music: 0x06, zone_music: game_music().1, levels, ..p }));
     }
 
     #[test]

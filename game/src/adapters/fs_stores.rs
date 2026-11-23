@@ -60,11 +60,11 @@ pub struct ZoneFile {
 
 impl ZoneProgressStore for ZoneFile {
     fn load(&self) -> Option<ZoneProgress> {
-        ZoneProgress::from_text(&std::fs::read_to_string(host::zones_file(&self.saves)).ok()?)
+        ZoneProgress::from_text(&host::storage::read_to_string(host::zones_file(&self.saves)).ok()?)
     }
     fn save(&self, progress: &ZoneProgress) {
         let p = host::zones_file(&self.saves);
-        let written = p.parent().map_or(Ok(()), std::fs::create_dir_all).and_then(|_| std::fs::write(&p, progress.to_text()));
+        let written = p.parent().map_or(Ok(()), host::storage::create_dir_all).and_then(|_| host::storage::write(&p, progress.to_text()));
         if let Err(e) = written {
             eprintln!("could not write the new zones' progress: {e}");
         }

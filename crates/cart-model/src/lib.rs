@@ -52,6 +52,7 @@ pub mod secret_exits;
 pub mod start_point;
 pub mod levels;
 pub mod live;
+pub mod map_music;
 pub mod map_routes;
 pub mod new_zones;
 pub mod objects;

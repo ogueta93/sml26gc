@@ -25,13 +25,15 @@ pub struct ZonePoints {
     pub door: u8,
     /// Empty: none.
     pub name: String,
+    /// The music its map plays (`cart_model::map_music`).
+    pub music: u8,
     /// The zone file it was imported or replaced from, if it was.
     pub restore: Option<Box<RestorePoint<NewZone>>>,
 }
 
 impl ZonePoints {
     pub fn from(z: NewZone) -> (ZonePoints, Vec<u8>) {
-        (ZonePoints { base: z.base, points: z.points, entry: z.entry, exits: z.exits, door: z.door, name: z.name, restore: None }, z.picture)
+        (ZonePoints { base: z.base, points: z.points, entry: z.entry, exits: z.exits, door: z.door, name: z.name, music: z.music, restore: None }, z.picture)
     }
 
     pub fn point(&self, p: u8) -> Option<&ZonePoint> {
@@ -94,11 +96,44 @@ impl EditorDocument {
     /// Zone `z` (one a door enters) as being edited, as a new zone.
     fn game_zone(&self, z: usize) -> Option<NewZone> {
         let mut n = new_zones::from_parts(&self.rom, z, &self.zones[z], &self.routes, &self.points, &self.doors)?;
+        n.music = self.zone_music[z];
         let entry = self.entries[doors::INTO.iter().position(|d| d.zone == z)?];
         if n.points.iter().any(|p| p.number == entry) {
             n.entry = entry;
         }
         Some(n)
+    }
+
+    /// The music map `map` plays.
+    pub fn map_music(&self, map: OnMap) -> u8 {
+        match map {
+            OnMap::World => self.world_music,
+            OnMap::Zone(z) => self.zone_music.get(z).copied().unwrap_or(0),
+            OnMap::NewZone(k) => self.new_zones.get(k).map_or(0, |z| z.music),
+        }
+    }
+
+    /// Give map `map` music `music` (undoable).
+    pub fn set_map_music(&mut self, map: OnMap, music: u8) {
+        if self.map_music(map) == music {
+            return;
+        }
+        self.map_snapshot();
+        match map {
+            OnMap::World => {
+                self.world_music = music;
+                self.music_dirty = true;
+            }
+            OnMap::Zone(z) if z < self.zone_music.len() => {
+                self.zone_music[z] = music;
+                self.music_dirty = true;
+            }
+            OnMap::NewZone(k) if k < self.new_zones.len() => {
+                self.new_zones[k].music = music;
+                self.new_zones_dirty = true;
+            }
+            _ => {}
+        }
     }
 
     /// Make the doors into zone `z` (one a door enters) enter it on its point `p` (undoable).
@@ -119,7 +154,7 @@ impl EditorDocument {
     /// New zone `k` as the edited copy keeps it.
     pub fn new_zone(&self, k: usize) -> NewZone {
         let z = &self.new_zones[k];
-        NewZone { base: z.base, picture: self.zones[Self::zone_picture(k)].clone(), points: z.points.clone(), entry: z.entry, exits: z.exits.clone(), door: z.door, name: z.name.clone() }
+        NewZone { base: z.base, picture: self.zones[Self::zone_picture(k)].clone(), points: z.points.clone(), entry: z.entry, exits: z.exits.clone(), door: z.door, name: z.name.clone(), music: z.music }
     }
 
     fn zones_changed(&mut self) {
@@ -171,6 +206,7 @@ impl EditorDocument {
             exits: from.exits.iter().map(|_| (NONE, Leads::World(NONE))).collect(),
             door: NONE,
             name: String::new(),
+            music: from.music,
         };
         self.push_zone(blank)
     }
@@ -415,7 +451,7 @@ mod tests {
     use cart_model::doors;
 
     fn open() -> Option<EditorDocument> {
-        let rom = host::find_rom(None)?;
+        let rom = host::test_cartridge()?;
         Some(EditorDocument::open(std::fs::read(rom).ok()?, None))
     }
 

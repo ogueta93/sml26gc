@@ -5331,17 +5331,17 @@ ru: Щёлкните на карте, где будет новая точка. E
 zh: 在地图上点击新点的位置。Esc:取消。
 ko: 새 지점을 둘 곳을 지도에서 클릭하세요. Esc: 취소.
 
-en: A new zone plays with its base zone's graphics and music. Click a point to choose it, drag it to move it (its paths become straight); New point adds one (up to 20 in the Tree Zone's, 21 in the others). Entry: Mario starts there. Exit to: where its exits lead. Its door is chosen on a world map point. Plays only in this port.
-es: Una zona nueva se juega con los graficos y la musica de su zona base. Haz clic en un punto para elegirlo y arrastralo para moverlo (sus caminos quedan rectos); Nuevo punto anade uno (hasta 20 en las de la Zona Arbol, 21 en las demas). Entrada: Mario empieza ahi. Sale a: adonde llevan sus salidas. Su puerta se elige en un punto del mundo. Solo se juega en este port.
-ja: 新しいゾーンは元のゾーンのグラフィックと音楽で遊びます。ポイントをクリックで選択、ドラッグで移動（道はまっすぐになります）。「新しいポイント」で追加（ツリーゾーン系は20まで、ほかは21まで）。入口：マリオがそこから始めます。出口の行き先：出口のつながる先。扉はワールドマップのポイントで選びます。この移植版でのみ遊べます。
-pt: Uma zona nova usa os graficos e a musica da zona base. Clique num ponto para escolhe-lo, arraste-o para move-lo (seus caminhos ficam retos); Ponto novo adiciona um (ate 20 na da Arvore, 21 nas outras). Entrada: o Mario comeca ali. Saida para: para onde suas saidas levam. Sua porta e escolhida num ponto do mapa-mundi. So funciona neste port.
-fr: Une nouvelle zone a les graphismes et la musique de sa zone de base. Cliquez sur un point pour le choisir, faites-le glisser pour le deplacer (ses chemins deviennent droits) ; Nouveau point en ajoute un (jusqu'a 20 dans celle de l'Arbre, 21 dans les autres). Entree : Mario commence la. Sortie vers : ou menent ses sorties. Sa porte se choisit sur un point de la carte du monde. Ne fonctionne que dans ce portage.
-de: Eine neue Zone spielt mit Grafik und Musik ihrer Basiszone. Klicke einen Punkt, um ihn zu waehlen, ziehe ihn, um ihn zu verschieben (seine Wege werden gerade); Neuer Punkt fuegt einen hinzu (bis 20 in der Baum-Zone, 21 in den anderen). Eingang: Mario beginnt dort. Ausgang nach: wohin ihre Ausgaenge fuehren. Ihre Tuer wird auf einem Weltkartenpunkt gewaehlt. Laeuft nur in dieser Portierung.
-it: Una nuova zona usa la grafica e la musica della sua zona base. Clicca un punto per sceglierlo, trascinalo per spostarlo (i suoi percorsi diventano dritti); Nuovo punto ne aggiunge uno (fino a 20 in quella dell'Albero, 21 nelle altre). Ingresso: Mario parte li. Uscita verso: dove portano le sue uscite. La sua porta si sceglie su un punto della mappa del mondo. Funziona solo in questo port.
-id: Zona baru memakai grafis dan musik zona dasarnya. Klik titik untuk memilihnya, seret untuk memindahkannya (jalurnya menjadi lurus); Titik baru menambah satu (hingga 20 di zona Pohon, 21 di lainnya). Pintu masuk: Mario mulai di sana. Keluar ke: tujuan jalan keluarnya. Pintunya dipilih di titik peta dunia. Hanya berjalan di port ini.
-ru: Новая зона играется с графикой и музыкой базовой зоны. Щёлкните точку, чтобы выбрать её, тащите, чтобы переместить (её пути станут прямыми); Новая точка добавляет точку (до 20 в зоне Дерева, 21 в остальных). Вход: Марио начинает там. Выход в: куда ведут её выходы. Её дверь выбирается на точке карты мира. Работает только в этом порте.
-zh: 新区域使用其基础区域的图像和音乐。点击点来选择,拖动来移动(其路径会变直);"新点"会添加一个(树木区最多20个,其他21个)。入口:马力欧从那里开始。出口通往:其出口通往的地方。它的门在世界地图的点上选择。仅在此移植版中可玩。
-ko: 새 존은 기반 존의 그래픽과 음악을 씁니다. 지점을 클릭해 고르고 드래그해서 옮기세요(길이 곧게 바뀝니다). 새 지점으로 하나 추가합니다(트리 존은 20개, 나머지는 21개까지). 입구: 마리오가 거기서 시작. 출구 행선지: 출구가 이어지는 곳. 문은 월드 맵 지점에서 고릅니다. 이 이식판에서만 플레이됩니다.
+en: A new zone plays with its base zone's graphics. Click a point to choose it, drag it to move it (its paths become straight); New point adds one (up to 20 in the Tree Zone's, 21 in the others). Entry: Mario starts there. Exit to: where its exits lead. Its door is chosen on a world map point. Plays only in this port.
+es: Una zona nueva se juega con los graficos de su zona base. Haz clic en un punto para elegirlo y arrastralo para moverlo (sus caminos quedan rectos); Nuevo punto anade uno (hasta 20 en las de la Zona Arbol, 21 en las demas). Entrada: Mario empieza ahi. Sale a: adonde llevan sus salidas. Su puerta se elige en un punto del mundo. Solo se juega en este port.
+ja: 新しいゾーンは元のゾーンのグラフィックで遊びます。ポイントをクリックで選択、ドラッグで移動（道はまっすぐになります）。「新しいポイント」で追加（ツリーゾーン系は20まで、ほかは21まで）。入口：マリオがそこから始めます。出口の行き先：出口のつながる先。扉はワールドマップのポイントで選びます。この移植版でのみ遊べます。
+pt: Uma zona nova usa os graficos da zona base. Clique num ponto para escolhe-lo, arraste-o para move-lo (seus caminhos ficam retos); Ponto novo adiciona um (ate 20 na da Arvore, 21 nas outras). Entrada: o Mario comeca ali. Saida para: para onde suas saidas levam. Sua porta e escolhida num ponto do mapa-mundi. So funciona neste port.
+fr: Une nouvelle zone a les graphismes de sa zone de base. Cliquez sur un point pour le choisir, faites-le glisser pour le deplacer (ses chemins deviennent droits) ; Nouveau point en ajoute un (jusqu'a 20 dans celle de l'Arbre, 21 dans les autres). Entree : Mario commence la. Sortie vers : ou menent ses sorties. Sa porte se choisit sur un point de la carte du monde. Ne fonctionne que dans ce portage.
+de: Eine neue Zone spielt mit der Grafik ihrer Basiszone. Klicke einen Punkt, um ihn zu waehlen, ziehe ihn, um ihn zu verschieben (seine Wege werden gerade); Neuer Punkt fuegt einen hinzu (bis 20 in der Baum-Zone, 21 in den anderen). Eingang: Mario beginnt dort. Ausgang nach: wohin ihre Ausgaenge fuehren. Ihre Tuer wird auf einem Weltkartenpunkt gewaehlt. Laeuft nur in dieser Portierung.
+it: Una nuova zona usa la grafica della sua zona base. Clicca un punto per sceglierlo, trascinalo per spostarlo (i suoi percorsi diventano dritti); Nuovo punto ne aggiunge uno (fino a 20 in quella dell'Albero, 21 nelle altre). Ingresso: Mario parte li. Uscita verso: dove portano le sue uscite. La sua porta si sceglie su un punto della mappa del mondo. Funziona solo in questo port.
+id: Zona baru memakai grafis zona dasarnya. Klik titik untuk memilihnya, seret untuk memindahkannya (jalurnya menjadi lurus); Titik baru menambah satu (hingga 20 di zona Pohon, 21 di lainnya). Pintu masuk: Mario mulai di sana. Keluar ke: tujuan jalan keluarnya. Pintunya dipilih di titik peta dunia. Hanya berjalan di port ini.
+ru: Новая зона играется с графикой базовой зоны. Щёлкните точку, чтобы выбрать её, тащите, чтобы переместить (её пути станут прямыми); Новая точка добавляет точку (до 20 в зоне Дерева, 21 в остальных). Вход: Марио начинает там. Выход в: куда ведут её выходы. Её дверь выбирается на точке карты мира. Работает только в этом порте.
+zh: 新区域使用其基础区域的图像。点击点来选择,拖动来移动(其路径会变直);"新点"会添加一个(树木区最多20个,其他21个)。入口:马力欧从那里开始。出口通往:其出口通往的地方。它的门在世界地图的点上选择。仅在此移植版中可玩。
+ko: 새 존은 기반 존의 그래픽을 씁니다. 지점을 클릭해 고르고 드래그해서 옮기세요(길이 곧게 바뀝니다). 새 지점으로 하나 추가합니다(트리 존은 20개, 나머지는 21개까지). 입구: 마리오가 거기서 시작. 출구 행선지: 출구가 이어지는 곳. 문은 월드 맵 지점에서 고릅니다. 이 이식판에서만 플레이됩니다.
 
 en: Click a point on the map to choose it; with - + choose the level it opens. Door: a world point can enter a zone or a new zone (A or START on it). Exit to: a zone's exit leads to a world point or straight into another zone; Choose on the map (U) picks where by clicking. Exit 1 / 2: Here moves that exit to the chosen zone point. Paths are drawn in yellow; New path draws one, New point puts one on the world map (6 numbers free). Play (F5) saves and tries it.
 es: Haz clic en un punto del mapa para elegirlo; con - + elige el nivel que abre. Puerta: un punto del mundo puede entrar en una zona o en una zona nueva (A o START sobre el). Sale a: la salida de una zona lleva a un punto del mundo o directamente a otra zona; Elegir en el mapa (U) lo elige con un clic. Salida 1 / 2: Aqui mueve esa salida al punto elegido de la zona. Los caminos se ven en amarillo; Nuevo camino dibuja uno, Nuevo punto pone uno en el mundo (6 numeros libres). Jugar (F5) guarda y lo prueba.
@@ -7396,3 +7396,39 @@ id: disimpan %n hari lalu
 ru: сохранено %n дн. назад
 zh: %n天前保存
 ko: %n일 전에 저장됨
+
+en: Export cartridge...
+es: Exportar cartucho...
+ja: カートリッジを書き出す...
+pt: Exportar cartucho...
+fr: Exporter la cartouche...
+de: Modul exportieren...
+it: Esporta cartuccia...
+id: Ekspor kartrid...
+ru: Экспорт картриджа...
+zh: 导出卡带...
+ko: 카트리지 내보내기...
+
+en: Export cartridge
+es: Exportar cartucho
+ja: カートリッジを書き出す
+pt: Exportar cartucho
+fr: Exporter la cartouche
+de: Modul exportieren
+it: Esporta cartuccia
+id: Ekspor kartrid
+ru: Экспорт картриджа
+zh: 导出卡带
+ko: 카트리지 내보내기
+
+en: Cartridge exported to
+es: Cartucho exportado a
+ja: カートリッジの書き出し先:
+pt: Cartucho exportado para
+fr: Cartouche exportee vers
+de: Modul exportiert nach
+it: Cartuccia esportata in
+id: Kartrid diekspor ke
+ru: Картридж экспортирован в
+zh: 卡带已导出到
+ko: 카트리지를 내보낸 위치:

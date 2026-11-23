@@ -10,7 +10,7 @@ game plays exactly as the original; everything below is added around it.
 |---|---|---|
 | The game | | The same program, rules, levels, music and saves, unchanged |
 | Edited games | | Plays the projects made in the editor (new levels, zones, map points, checkpoints...), each with its own saves |
-| Screen | 160x144, green | Any window size or full screen, sharp (whole pixels) or fitted; classic, green or grey colours |
+| Screen | 160x144, green | Any window size or full screen, sharp (whole pixels), fitted or stretched; classic, green or grey colours |
 | Controls | The console's buttons | Keyboard and any controller at once, every button can be changed |
 | Pause | Start | A menu over the game: the game's own pause, controls, display, sound, language, back to the map, file select, quit |
 | Language | English | The menus in 11 languages (the game's own texts stay as they are) |
@@ -39,7 +39,7 @@ screen running:
 | C, the "Debug / cheats" box | Turns on the cheats mode (kept for next time) |
 | L, the language list (top right) | The language of the screens and menus (until one is chosen, the system's) |
 | O, Cartridge... | Chooses another base cartridge file |
-| Esc, Quit | Closes the game |
+| Esc, Quit | Closes the game (not in a browser: close its page) |
 
 A project's cartridge is made again from its project file when it is missing or older, so a
 project saved in the editor plays at once.
@@ -61,21 +61,52 @@ project saved in the editor plays at once.
 | Save state / load state (cheats mode) | F6 / F7 | LB / RB |
 | Rewind (held, cheats mode) | R | LT |
 | Restart level (cheats mode, test games) | F8 | |
-| Full screen | F11 (macOS: also Cmd+Ctrl+F) | |
+| Full screen | F11 (macOS: also Cmd+Ctrl+F; in a browser, also the fullscreen button) | |
 
 A controller (on Windows XInput or Windows.Gaming.Input, on Linux and macOS any the system sees) plays as
 soon as it is connected, together with the keyboard. Every binding is changed in the pause menu, Controls.
 
+### On a phone or tablet (the web game)
+
+Touching the screen shows the on-screen controls; a key or a controller button hides them again.
+Held upright, the picture is at the top and the controls below it, like a handheld; held across,
+the controls are on either side of the picture.
+
+| Control | What it does |
+|---|---|
+| D-pad | The directions, diagonals too; slide the finger to change direction |
+| A, B | A and B; a finger between them presses both |
+| Select, Start | Select and Start |
+| Menu (three lines) | Opens the pause menu |
+| Fullscreen (four corners) | Enters or leaves fullscreen, without the browser's bars |
+| Double arrows | Rewind (held, cheats mode) and fast forward (held) |
+| Arrow into / out of a tray | Save state / load state (cheats mode) |
+| Turning arrow | Restart level (in a level: cheats mode, test games) |
+
+The port's buttons are smaller and apart from the Game Boy's: upright, in a row left of the menu
+button; across, above the D-pad. Only those that work at that moment show.
+
+The touched buttons play through the controller's bindings (pause menu, Controls). Controls also
+sets when they show (auto, always, never), their size and whether a press vibrates. Set to never
+with no key pressed and no controller connected, a small button (a cross) stays in the top right corner:
+touching it brings them back.
+
+On an iPhone, Safari has no fullscreen: add the page to the home screen (Share, Add to Home
+Screen) and open it from there to play without the browser's bars. The start screen says so.
+
 ## The pause menu
 
 Esc opens it (in a level, Enter does too); the frame's footer shows the keys. Esc goes back.
+The footer, the start-up tag and the save state notes name the buttons of what plays: a
+connected controller's first (even with a keyboard there), else the on-screen controls' while
+they show, else the keyboard's.
 
 | Item | What it does |
 |---|---|
 | Original pause | In a level: the game's own pause screen |
 | Debug / cheats | With the cheats mode on: the cheats, below |
-| Controls | Input (keyboard or controller), then each binding: Enter, then the new key or button. Restore defaults puts them back |
-| Display | Colours (classic, green, grey, with a sample), full screen, scale (sharp: whole pixels; fitted: fills the window) |
+| Controls | Input (keyboard or controller), then each binding: Enter, then the new key or button. Restore defaults puts them back. Then the on-screen controls: when they show, their size, vibration. Only the inputs there are show: the controller's while one is connected, the on-screen controls' on a touch screen, the keyboard's on a computer (in a browser, where a mouse or trackpad is the main pointer, or once a key is pressed). With a controller connected, it opens on the controller's bindings |
+| Display | Colours (classic, green, grey, with a sample), full screen, scale (sharp: whole pixels, with borders; fitted: as large as fits at its shape; stretched: all the room, out of shape; with the on-screen controls upright, the row of small buttons moves down next to the D-pad to give it room) |
 | Sound | Volume, 0 to 10 |
 | Language | English, Español, 日本語, Português, Français, Deutsch, Italiano, Bahasa Indonesia, Русский, 简体中文, 한국어 |
 | Restart level | Cheats mode or a test game: the level again, without losing a life |

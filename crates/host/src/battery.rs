@@ -5,10 +5,10 @@ use std::path::Path;
 /// Power on a Game Boy with this cartridge file; with `save`, its battery RAM comes from that
 /// save file (if there is one).
 pub fn load_gb(rom_path: &Path, sample_rate: u32, save: Option<&Path>) -> Result<Gb, String> {
-    let rom = std::fs::read(rom_path).map_err(|e| format!("could not read {}: {e}", rom_path.display()))?;
+    let rom = crate::storage::read(rom_path).map_err(|e| format!("could not read {}: {e}", rom_path.display()))?;
     let mut gb = Gb::new(rom, sample_rate)?;
     if let (Some(save), true) = (save, gb.cart().has_battery()) {
-        if let Ok(data) = std::fs::read(save) {
+        if let Ok(data) = crate::storage::read(save) {
             let ram = gb.cart_mut().ram_mut();
             let n = data.len().min(ram.len());
             ram[..n].copy_from_slice(&data[..n]);
@@ -24,9 +24,9 @@ pub fn write_battery_save(gb: &mut Gb, save: &Path) -> std::io::Result<bool> {
         return Ok(false);
     }
     if let Some(d) = save.parent() {
-        std::fs::create_dir_all(d)?;
+        crate::storage::create_dir_all(d)?;
     }
-    std::fs::write(save, gb.cart().ram())?;
+    crate::storage::write(save, gb.cart().ram())?;
     gb.cart_mut().mark_saved();
     Ok(true)
 }

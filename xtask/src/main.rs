@@ -4,8 +4,10 @@
 //!   package TARGET        builds the game and the editor for TARGET and writes
 //!                         `dist/TARGET/<id>/` and the target's packages in `dist/`
 //!   check-portable        checks the platform-independent crates for Linux
+//!   release-notes TAG     prints the changelog's section of the version TAG (`vX.Y.Z`) names,
+//!                         which must be the workspace's version
 //!
-//! A package holds the two executables, the read-me (`packaging/<platform>/`) and the cartridge
+//! A package holds the two executables (the web package: their pages and programs), the read-me (`packaging/<platform>/`) and the cartridge
 //! notice (`packaging/`), the licence (`LICENSE`), the legal notice (`LEGAL.md`) and the
 //! changelog, the manuals (`docs/GAME.md`, `docs/EDITOR.md`) and the other licences, and nothing
 //! else: it is built into its own folder under `target/`, apart from the developer's
@@ -14,6 +16,7 @@ mod icons;
 mod licences;
 mod linux;
 mod macos;
+mod web;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -22,8 +25,12 @@ use std::process::{Command, ExitCode};
 struct Target {
     name: &'static str,
     triple: &'static str,
-    /// `std::env::consts::OS` of the computer that builds it.
+    /// `std::env::consts::OS` of the computer that builds it (`ANY_HOST`: any).
     host_os: &'static str,
+    /// `std::env::consts::ARCH` of the computer that builds it (`ANY_HOST`: any).
+    host_arch: &'static str,
+    /// The processor its read-me names (`{cpu}`).
+    cpu: &'static str,
     suffix: &'static str,
     imports: Imports,
     /// Its texts end their lines with CRLF.
@@ -38,11 +45,13 @@ struct Target {
 enum Imports {
     /// Any but these (prefixes; they are not on every computer).
     Deny(&'static [&'static str]),
-    /// Only these, and no glibc newer than `glibc` (the read-me names them all).
-    Allow { libraries: &'static [&'static str], glibc: (u32, u32) },
+    /// Only those of these lists, and no glibc newer than `glibc` (the read-me names them all).
+    Allow { libraries: &'static [&'static [&'static str]], glibc: (u32, u32) },
     /// Only the system's, every architecture of `Build::Universal`, and no minimum macOS newer
     /// than `macos`, which they are built for.
     MacOs { macos: (u32, u32) },
+    /// A WebAssembly program, which imports only from its page.
+    Page,
 }
 
 enum Build {
@@ -59,34 +68,56 @@ enum Layout {
     Flat,
     /// Each in its macOS app bundle.
     AppBundles,
+    /// Both as web pages (`web::assemble`).
+    Web,
 }
 
 enum Output {
     Zip,
     TarGz,
-    Deb,
+    /// The `.deb`, of this Debian architecture.
+    Deb(&'static str),
     /// The zip made by `ditto`, which keeps the app bundles' modes and signatures.
     Ditto,
 }
 
 const TARGETS: &[Target] = &[
-    Target { name: "windows-x64", triple: "x86_64-pc-windows-msvc", host_os: "windows", suffix: ".exe", imports: Imports::Deny(&["vcruntime", "api-ms-win-crt-", "msvcp"]), crlf: true, readme: "windows/README.txt", build: Build::Here, layout: Layout::Flat, outputs: &[Output::Zip] },
+    Target { name: "windows-x64", triple: "x86_64-pc-windows-msvc", host_os: "windows", host_arch: "x86_64", cpu: WINDOWS_X64, suffix: ".exe", imports: Imports::Deny(WINDOWS_DENIED), crlf: true, readme: "windows/README.txt", build: Build::Here, layout: Layout::Flat, outputs: &[Output::Zip] },
+    Target { name: "windows-arm64", triple: "aarch64-pc-windows-msvc", host_os: "windows", host_arch: "aarch64", cpu: WINDOWS_ARM64, suffix: ".exe", imports: Imports::Deny(WINDOWS_DENIED), crlf: true, readme: "windows/README.txt", build: Build::Here, layout: Layout::Flat, outputs: &[Output::Zip] },
     Target {
         name: "linux-x64",
         triple: "x86_64-unknown-linux-gnu",
         host_os: "linux",
+        host_arch: "x86_64",
+        cpu: "a 64-bit x86 computer (x86_64, Intel or AMD)",
         suffix: "",
-        imports: Imports::Allow { libraries: &["libc.so.6", "libm.so.6", "libgcc_s.so.1", "ld-linux-x86-64.so.2", "libdl.so.2", "libpthread.so.0", "librt.so.1", "libasound.so.2", "libudev.so.1"], glibc: (2, 31) },
+        imports: Imports::Allow { libraries: &[LINUX_LIBRARIES, &["ld-linux-x86-64.so.2"]], glibc: LINUX_GLIBC },
         crlf: false,
         readme: "linux/README.txt",
         build: Build::Container,
         layout: Layout::Flat,
-        outputs: &[Output::TarGz, Output::Deb],
+        outputs: &[Output::TarGz, Output::Deb("amd64")],
+    },
+    Target {
+        name: "linux-arm64",
+        triple: "aarch64-unknown-linux-gnu",
+        host_os: "linux",
+        host_arch: "aarch64",
+        cpu: "a 64-bit ARM computer (aarch64, such as a Raspberry Pi 4 or 5)",
+        suffix: "",
+        imports: Imports::Allow { libraries: &[LINUX_LIBRARIES, &["ld-linux-aarch64.so.1"]], glibc: LINUX_GLIBC },
+        crlf: false,
+        readme: "linux/README.txt",
+        build: Build::Container,
+        layout: Layout::Flat,
+        outputs: &[Output::TarGz, Output::Deb("arm64")],
     },
     Target {
         name: "macos-universal",
         triple: "aarch64-apple-darwin",
         host_os: "macos",
+        host_arch: ANY_HOST,
+        cpu: "",
         suffix: "",
         imports: Imports::MacOs { macos: (11, 0) },
         crlf: false,
@@ -95,7 +126,20 @@ const TARGETS: &[Target] = &[
         layout: Layout::AppBundles,
         outputs: &[Output::Ditto],
     },
+    Target { name: "web", triple: web::TRIPLE, host_os: ANY_HOST, host_arch: ANY_HOST, cpu: "", suffix: ".wasm", imports: Imports::Page, crlf: false, readme: "web/README.txt", build: Build::Here, layout: Layout::Web, outputs: &[Output::Zip] },
 ];
+
+/// The C and C++ runtime DLLs the Windows executables must not need (they are linked in).
+const WINDOWS_DENIED: &[&str] = &["vcruntime", "api-ms-win-crt-", "msvcp"];
+const WINDOWS_X64: &str = "an x86-64 processor (Intel or AMD)";
+const WINDOWS_ARM64: &str = "an ARM processor (Windows on ARM laptops, such as Snapdragon ones).\n    The x64 package also runs there, through emulation, more slowly";
+/// The libraries the Linux executables may need besides their architecture's loader (the
+/// read-me names them all).
+const LINUX_LIBRARIES: &[&str] = &["libc.so.6", "libm.so.6", "libgcc_s.so.1", "libdl.so.2", "libpthread.so.0", "librt.so.1", "libasound.so.2", "libudev.so.1"];
+/// The newest glibc the Linux executables may need: Ubuntu 18.04's, which they are built on.
+const LINUX_GLIBC: (u32, u32) = (2, 27);
+
+const ANY_HOST: &str = "any";
 
 /// The programs shipped: their crates (the binaries' names come from the manifests).
 const PROGRAMS: [&str; 2] = ["game", "editor"];
@@ -114,7 +158,7 @@ fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.first().map(String::as_str) {
         Some("targets") => {
-            TARGETS.iter().for_each(|t| println!("{} ({}, built on {})", t.name, t.triple, t.host_os));
+            TARGETS.iter().for_each(|t| println!("{} ({}, built on {})", t.name, t.triple, built_on(t)));
             Ok(())
         }
         Some("package") => match TARGETS.iter().find(|t| Some(t.name) == args.get(1).map(String::as_str)) {
@@ -122,7 +166,14 @@ fn main() -> ExitCode {
             None => Err(format!("package what? The targets are: {}", TARGETS.iter().map(|t| t.name).collect::<Vec<_>>().join(", "))),
         },
         Some("check-portable") => check_portable(),
-        _ => Err("usage: cargo xtask targets | package TARGET | check-portable".into()),
+        Some("release-notes") => match args.get(1) {
+            Some(tag) => workspace_version().and_then(|v| {
+                let changelog = std::fs::read_to_string(root().join("CHANGELOG.md")).map_err(|e| format!("CHANGELOG.md: {e}"))?;
+                release_notes(&changelog, tag, &v).map(|notes| print!("{notes}"))
+            }),
+            None => Err("release-notes what? Give the tag, as v1.2.0".into()),
+        },
+        _ => Err("usage: cargo xtask targets | package TARGET | check-portable | release-notes TAG".into()),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -131,6 +182,21 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// The system (and processor) `t` is built on, as `targets` lists it.
+fn built_on(t: &Target) -> String {
+    match (t.host_os, t.host_arch) {
+        (ANY_HOST, _) => ANY_HOST.into(),
+        (os, ANY_HOST) => os.into(),
+        (os, arch) => format!("{os} on {arch}"),
+    }
+}
+
+/// Why `t` cannot be built on a computer running `os` on `arch`, if it cannot.
+fn wrong_host(t: &Target, os: &str, arch: &str) -> Option<String> {
+    let fits = |want: &str, have: &str| want == ANY_HOST || want == have;
+    (!fits(t.host_os, os) || !fits(t.host_arch, arch)).then(|| format!("the {} package is built on {} (this computer runs {os} on {arch})", t.name, built_on(t)))
 }
 
 fn root() -> PathBuf {
@@ -160,10 +226,12 @@ fn metadata(triple: &str) -> Result<serde_json::Value, String> {
 /// What the texts' `{...}` are filled with.
 struct Fill {
     programs: Vec<String>,
-    /// The oldest glibc the Linux executables need, as `2.31`.
+    /// The oldest glibc the Linux executables need, as `2.27`.
     glibc: Option<String>,
     /// The oldest macOS the macOS executables run on, as `11.0`.
     macos: Option<String>,
+    /// The processor the read-me names.
+    cpu: &'static str,
     version: String,
     crlf: bool,
 }
@@ -174,19 +242,22 @@ impl Fill {
             .replace("{product}", env!("PRODUCT_NAME"))
             .replace("{id}", env!("PRODUCT_ID"))
             .replace("{game}", &self.programs[0])
-            .replace("{editor}", &self.programs[1])
+            .replace("{editor}", self.programs.get(1).map_or("", String::as_str))
             .replace("{source}", env!("PRODUCT_SOURCE"))
             .replace("{maintainer}", env!("PRODUCT_MAINTAINER"))
             .replace("{glibc}", self.glibc.as_deref().unwrap_or("?"))
-            .replace("{macos}", self.macos.as_deref().unwrap_or("?"));
+            .replace("{macos}", self.macos.as_deref().unwrap_or("?"))
+            .replace("{cpu}", self.cpu);
         if self.crlf { text.replace("\r\n", "\n").replace('\n', "\r\n") } else { text }
     }
 }
 
 fn package(t: &Target) -> Result<(), String> {
     let id = env!("PRODUCT_ID");
-    if std::env::consts::OS != t.host_os {
-        return Err(format!("the {} package is built on {} (this computer runs {})", t.name, t.host_os, std::env::consts::OS));
+    wrong_host(t, std::env::consts::OS, std::env::consts::ARCH).map_or(Ok(()), Err)?;
+    let web = matches!(t.layout, Layout::Web);
+    if web {
+        web::check_target()?;
     }
     let meta = metadata(t.triple)?;
     let packages = meta["packages"].as_array().ok_or("cargo metadata: no packages")?;
@@ -194,7 +265,7 @@ fn package(t: &Target) -> Result<(), String> {
     let version = game["version"].as_str().ok_or("no game version")?.to_string();
     let target_dir = PathBuf::from(meta["target_directory"].as_str().ok_or("cargo metadata: no target directory")?);
     let mut bins = Vec::new();
-    for p in PROGRAMS {
+    for &p in &PROGRAMS {
         let bin = packages.iter().find(|q| q["name"] == p).and_then(|q| q["targets"].as_array()?.iter().find(|t| t["kind"][0] == "bin")?["name"].as_str()).ok_or(format!("no binary in {p}"))?;
         bins.push(bin.to_string());
     }
@@ -204,6 +275,9 @@ fn package(t: &Target) -> Result<(), String> {
             build.args(["build", "--profile", "dist", "--target", t.triple]);
             for p in PROGRAMS {
                 build.args(["-p", p]);
+            }
+            if web {
+                build.args(["-p", web::WORKER.0]);
             }
             run(build)?;
             target_dir.join(t.triple).join("dist")
@@ -233,16 +307,17 @@ fn package(t: &Target) -> Result<(), String> {
         let from = built.join(&file);
         match t.imports {
             Imports::Deny(denied) => check_imports(&from, denied)?,
-            Imports::Allow { libraries, glibc: limit } => glibc = glibc.max(Some(linux::check_libraries(&from, libraries, limit)?)),
+            Imports::Allow { libraries, glibc: limit } => glibc = glibc.max(Some(linux::check_libraries(&from, &libraries.concat(), limit)?)),
             Imports::MacOs { macos: limit } => {
                 let Build::Universal(triples) = t.build else { return Err(format!("{}: the macOS check needs a universal build", t.name)) };
                 macos = macos.max(Some(macos::check(&from, triples, limit)?));
             }
+            Imports::Page => {}
         }
         std::fs::copy(&from, folder.join(&file)).map_err(|e| format!("{}: {e}", from.display()))?;
         programs.push(file);
     }
-    let fill = Fill { programs, glibc: glibc.map(|(a, b)| format!("{a}.{b}")), macos: macos.map(|(a, b)| format!("{a}.{b}")), version: version.clone(), crlf: t.crlf };
+    let fill = Fill { programs, glibc: glibc.map(|(a, b)| format!("{a}.{b}")), macos: macos.map(|(a, b)| format!("{a}.{b}")), version: version.clone(), crlf: t.crlf, cpu: t.cpu };
     if let Some(g) = &fill.glibc {
         println!("glibc:   the executables need {g} or newer");
     }
@@ -251,6 +326,9 @@ fn package(t: &Target) -> Result<(), String> {
     }
     if let (Layout::AppBundles, Imports::MacOs { macos: limit }) = (&t.layout, &t.imports) {
         macos::bundles(&root(), &folder, &fill, *limit)?;
+    }
+    if web {
+        web::assemble(&root(), &built, &folder, &fill.programs, |text| fill.text(text))?;
     }
 
     let packaging = root().join("packaging");
@@ -281,7 +359,7 @@ fn package(t: &Target) -> Result<(), String> {
                 linux::tar_folder(&folder, id, &tar, &fill.programs)?;
                 tar
             }
-            Output::Deb => linux::deb(&root(), &folder, &fill)?,
+            Output::Deb(arch) => linux::deb(&root(), &folder, &fill, arch)?,
             Output::Ditto => {
                 let zip = root().join("dist").join(format!("{id}-{version}-{}.zip", t.name));
                 macos::ditto(&folder, &zip)?;
@@ -353,4 +431,56 @@ fn check_portable() -> Result<(), String> {
         c.args(["-p", p]);
     }
     run(c)
+}
+
+/// The workspace's `version` (the root `Cargo.toml`, `[workspace.package]`).
+fn workspace_version() -> Result<String, String> {
+    let toml = std::fs::read_to_string(root().join("Cargo.toml")).map_err(|e| format!("Cargo.toml: {e}"))?;
+    let package = toml.split("[workspace.package]").nth(1).ok_or("Cargo.toml: no [workspace.package]")?;
+    let line = package.lines().find(|l| l.trim_start().starts_with("version")).ok_or("Cargo.toml: no workspace version")?;
+    Ok(line.split('"').nth(1).ok_or("Cargo.toml: the version is not quoted")?.to_string())
+}
+
+/// The text of `changelog`'s `## [X.Y.Z] - <date>` section for `tag` (`vX.Y.Z`), without its
+/// heading; refused when the tag is not `version` or the section is missing or empty.
+fn release_notes(changelog: &str, tag: &str, version: &str) -> Result<String, String> {
+    if tag.strip_prefix('v') != Some(version) {
+        return Err(format!("the tag {tag} is not the workspace's version {version} (Cargo.toml): tag v{version}, or set the version first"));
+    }
+    let heading = format!("## [{version}]");
+    let mut lines = changelog.lines().skip_while(|l| !l.starts_with(&heading));
+    lines.next().ok_or(format!("CHANGELOG.md has no section {heading}"))?;
+    let section: Vec<&str> = lines.take_while(|l| !l.starts_with("## [")).collect();
+    let text = section.join("\n").trim().to_string();
+    if text.is_empty() {
+        return Err(format!("CHANGELOG.md's section {heading} is empty"));
+    }
+    Ok(format!("{text}\n"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn six_targets_each_built_on_its_own_system() {
+        let names: Vec<&str> = TARGETS.iter().map(|t| t.name).collect();
+        assert_eq!(names, ["windows-x64", "windows-arm64", "linux-x64", "linux-arm64", "macos-universal", "web"]);
+        let t = |n: &str| TARGETS.iter().find(|t| t.name == n).unwrap();
+        assert!(wrong_host(t("linux-arm64"), "linux", "x86_64").is_some_and(|e| e.contains("linux on aarch64")));
+        assert_eq!(wrong_host(t("linux-arm64"), "linux", "aarch64"), None);
+        assert!(wrong_host(t("windows-x64"), "linux", "x86_64").is_some());
+        assert_eq!((wrong_host(t("macos-universal"), "macos", "x86_64"), wrong_host(t("web"), "windows", "aarch64")), (None, None));
+    }
+
+    const CHANGELOG: &str = "# Changelog\n\n## [Unreleased]\n\n### Added\n\n- Next.\n\n## [1.2.0] - 2026-11-22\n\n### Added\n\n- A tool.\n\n### Fixed\n\n- A bug.\n\n## [1.1.0] - 2026-11-21\n\n- Old.\n";
+
+    #[test]
+    fn release_notes_are_the_versions_section() {
+        assert_eq!(release_notes(CHANGELOG, "v1.2.0", "1.2.0"), Ok("### Added\n\n- A tool.\n\n### Fixed\n\n- A bug.\n".into()));
+        assert!(release_notes(CHANGELOG, "v1.3.0", "1.2.0").is_err_and(|e| e.contains("not the workspace's version")));
+        assert!(release_notes(CHANGELOG, "1.2.0", "1.2.0").is_err());
+        assert!(release_notes(CHANGELOG, "v9.9.9", "9.9.9").is_err_and(|e| e.contains("no section")));
+        assert!(release_notes("## [2.0.0] - x\n\n## [1.0.0]\n", "v2.0.0", "2.0.0").is_err_and(|e| e.contains("empty")));
+    }
 }

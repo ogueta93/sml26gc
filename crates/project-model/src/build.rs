@@ -27,7 +27,7 @@ mod tests {
 
     #[test]
     fn a_project_file_makes_a_cartridge_holding_it() {
-        let Some(path) = host::find_rom(None) else { return };
+        let Some(path) = host::test_cartridge() else { return };
         let base = std::fs::read(path).unwrap();
         let mut doc = EditorDocument::open(base.clone(), None);
         doc.levels[3].content.map[0] ^= 1;

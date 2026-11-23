@@ -1,0 +1,63 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>SML2 6GC</title>
+<meta name="description" content="Plays your own Super Mario Land 2: 6 Golden Coins cartridge in the browser. No game is included.">
+<meta name="theme-color" content="#16181d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="SML2 6GC">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #16181d; color: #e6e6e6; font: 16px/1.5 system-ui, sans-serif; }
+  #glcanvas {
+    position: fixed;
+    top: env(safe-area-inset-top); right: env(safe-area-inset-right);
+    bottom: env(safe-area-inset-bottom); left: env(safe-area-inset-left);
+    width: calc(100% - env(safe-area-inset-left) - env(safe-area-inset-right));
+    height: calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    outline: none; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  #message { display: none; max-width: 34em; margin: 12vh auto 0; padding: 0 20px; }
+  #message code { background: #2a2e36; padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<canvas id="glcanvas" tabindex="1"></canvas>
+<div id="message"></div>
+<script src="gl.js?v={build}"></script>
+<script src="sml26gc.js?v={build}"></script>
+<script>
+  (function () {
+    function show(html) {
+      document.getElementById("glcanvas").style.display = "none";
+      var m = document.getElementById("message");
+      m.innerHTML = html;
+      m.style.display = "block";
+    }
+    if (location.protocol === "file:") {
+      show("<h2>This page must be served by a web server</h2>"
+        + "<p>Browsers do not run it opened straight from a folder. In this folder, run "
+        + "<code>python3 -m http.server</code> (on Windows <code>py -m http.server</code>) and open "
+        + "<code>http://localhost:8000/</code>. README.txt explains it and other ways.</p>");
+      return;
+    }
+    var webgl = false;
+    try { var c = document.createElement("canvas"); webgl = !!(c.getContext("webgl2") || c.getContext("webgl")); } catch (e) {}
+    if (typeof WebAssembly !== "object" || !webgl) {
+      show("<h2>This browser cannot run the game</h2>"
+        + "<p>It needs WebAssembly and WebGL: a current Chrome, Edge, Firefox or Safari "
+        + "(on iPhone and iPad, iOS 16.4 or later).</p>");
+      return;
+    }
+    sml.start("sml26gc.wasm?v={build}");
+  })();
+</script>
+</body>
+</html>

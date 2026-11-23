@@ -1,0 +1,46 @@
+# Puts the web package of the newest published release on the project's GitHub Pages site,
+# when a release is published or by hand (docs/DEVELOPMENT.md, "GitHub Actions"). A draft, or
+# publishing an older version later, never changes the site.
+name: Web version online
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy the latest release's web package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: The newest published release's web package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag=$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name)
+          echo "Newest published release: $tag"
+          if ! gh release download "$tag" --pattern '*-web.zip' --dir web; then
+            echo "::error::The release $tag has no web package (sml26gc-<version>-web.zip)"
+            exit 1
+          fi
+          unzip -q web/*-web.zip -d site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/sml26gc
+      - id: deploy
+        uses: actions/deploy-pages@v4

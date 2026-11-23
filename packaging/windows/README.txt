@@ -20,7 +20,7 @@ cartridge file (.gb); both programs then use it. The file is only read, never ch
 
 WHAT THE COMPUTER NEEDS
 
-  - Windows 11, 64-bit.
+  - Windows 10 or 11, 64-bit, on {cpu}.
   - A graphics card with its driver supporting OpenGL 3.1 (or at least 2.1): any card of the
     last ten years with the manufacturer's driver installed.
   - Optional: a sound device (without one the game plays silently) and a game controller

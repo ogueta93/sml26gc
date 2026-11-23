@@ -109,6 +109,13 @@ pub fn export_project(doc: &EditorDocument, name: &str, dialogs: &dyn FileDialog
     write(dialogs, out, FileKind::Project, name, || files::project_text(&doc.project_file()))
 }
 
+/// The project's edited cartridge `rom` as a `.gb` file.
+pub fn export_cartridge(rom: &[u8], name: &str, dialogs: &dyn FileDialogs, out: &dyn TextFiles) -> Done<PathBuf> {
+    let Some(path) = dialogs.save_as(FileKind::Cartridge, name) else { return cancelled(dialogs) };
+    out.write_bytes(&path, rom).map_err(ExchangeError::Io)?;
+    Ok(Some(path))
+}
+
 pub fn export_world(doc: &EditorDocument, name: &str, dialogs: &dyn FileDialogs, out: &dyn TextFiles) -> Done<PathBuf> {
     write(dialogs, out, FileKind::World, name, || files::world_text(&doc.world_file()))
 }
@@ -120,4 +127,55 @@ pub fn import_world(doc: &mut EditorDocument, dialogs: &dyn FileDialogs, input: 
     let w = files::read_world(&text).map_err(ExchangeError::File)?;
     let start = w.start;
     doc.replace_world(w).map(|(p, e)| Some((p, e, start))).map_err(ExchangeError::File)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+    use std::path::Path;
+
+    /// Dialogs that answer every Save with `exports/<name>.<ext>`, or are cancelled.
+    struct Answer(bool);
+    impl FileDialogs for Answer {
+        fn save_as(&self, kind: FileKind, name: &str) -> Option<PathBuf> {
+            self.0.then(|| PathBuf::from(format!("exports/{name}.{}", kind.extension())))
+        }
+        fn open(&self, _: FileKind) -> Option<PathBuf> {
+            None
+        }
+        fn pick_cartridge(&self) -> Option<PathBuf> {
+            None
+        }
+        fn set_lang(&mut self, _: i18n::Lang) {}
+        fn available(&self) -> bool {
+            true
+        }
+    }
+
+    #[derive(Default)]
+    struct Written(RefCell<Vec<(PathBuf, Vec<u8>)>>);
+    impl TextFiles for Written {
+        fn read(&self, _: &Path) -> std::io::Result<String> {
+            Err(std::io::ErrorKind::NotFound.into())
+        }
+        fn write(&self, path: &Path, text: &str) -> std::io::Result<()> {
+            self.write_bytes(path, text.as_bytes())
+        }
+        fn write_bytes(&self, path: &Path, data: &[u8]) -> std::io::Result<()> {
+            self.0.borrow_mut().push((path.to_path_buf(), data.to_vec()));
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn the_cartridge_is_written_as_it_is() {
+        let out = Written::default();
+        let rom = [1u8, 2, 3];
+        let done = export_cartridge(&rom, "Sky", &Answer(true), &out).unwrap();
+        assert_eq!(done, Some(PathBuf::from("exports/Sky.gb")));
+        assert_eq!(*out.0.borrow(), [(PathBuf::from("exports/Sky.gb"), rom.to_vec())]);
+        assert_eq!(export_cartridge(&rom, "Sky", &Answer(false), &out).unwrap(), None, "cancelled");
+        assert_eq!(out.0.borrow().len(), 1);
+    }
 }
