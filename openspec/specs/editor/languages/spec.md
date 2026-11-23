@@ -88,3 +88,13 @@ Every translated text the editor shows, the game zones' names and the "saved ...
 #### Scenario: A zone's name
 - **WHEN** the Korean line of the entry "Tree Zone" is changed in `editor/i18n/editor.txt`
 - **THEN** the editor in Korean shows the new name, and no Rust file was edited
+
+### Requirement: Texts stay readable
+
+The editor's texts SHALL stay readable for as long as it runs, in every language, whatever
+new letters or sizes it comes to draw.
+
+#### Scenario: New letters after the menu bar has been drawn
+
+- **WHEN** the editor draws letters or sizes it had not drawn before, after its menu bar and views have been drawn with text
+- **THEN** every text keeps drawing as letters, in that frame and every later one, without quitting the editor
