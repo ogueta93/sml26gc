@@ -101,6 +101,7 @@ them out first.
 | `sml26gc.exe --dump DIR --script ... --frames N --every N` | Screens of a scripted run |
 | `sml26gc.exe --screenshot FILE [--start-screen]`, `sml26gc_editor.exe --screenshot FILE [--project NAME --level N]` | One picture of the window, with default settings (unattended checks) |
 | `cargo xtask targets`, `cargo xtask package TARGET`, `cargo xtask check-portable` | The release tool, below ("Building for Windows", "Building for Linux", "Building for macOS", "Building for the web") |
+| `cargo xtask release-notes vX.Y.Z` | Prints the changelog's section of that version, the text of its GitHub release; refuses a tag that is not the workspace's version (below, "Workflow and releases") |
 
 Never run `cargo fmt`: the code is formatted by hand (`AGENTS.md`).
 
@@ -126,13 +127,16 @@ commits.
 
 ## Building for Windows
 
-The package another person unpacks and runs:
+The package another person unpacks and runs, on Windows with an x86-64 processor, or with an
+ARM one for `windows-arm64` (each package is built on its own processor):
 
     cargo xtask package windows-x64
+    cargo xtask package windows-arm64
 
 1. Builds the game and the editor with the `dist` profile (link-time optimisation, no debug
-   symbols) for `x86_64-pc-windows-msvc`, in `target\x86_64-pc-windows-msvc\dist\` (Cargo's
-   build folder, named after the profile; never run the programs from it).
+   symbols) for `x86_64-pc-windows-msvc` (or `aarch64-pc-windows-msvc`), in
+   `target\<triple>\dist\` (Cargo's build folder, named after the profile; never run the
+   programs from it).
 2. Checks that neither executable needs the Visual C++ runtime DLLs (`VCRUNTIME140.dll`,
    `api-ms-win-crt-*`): `.cargo/config.toml` links the C runtime in (`+crt-static`).
 3. Writes `dist\windows-x64\sml26gc\`, emptied first: `sml26gc.exe`, `sml26gc_editor.exe`,
@@ -140,7 +144,10 @@ The package another person unpacks and runs:
    and program names filled in, `LICENSE.txt` (the GPL), `LEGAL.md`, `CHANGELOG.md`, `manuals\` (`docs/GAME.md`,
    `docs/EDITOR.md`) and `licenses\` (the fonts' and those of every Rust crate compiled in, from
    `cargo metadata`).
-4. Zips that folder to `dist\sml26gc-<version>-windows-x64.zip`.
+4. Zips that folder to `dist\sml26gc-<version>-<target>.zip`.
+
+The packages run on Windows 10 and 11: nothing in the code needs Windows 11, and Rust's standard
+library supports Windows 10 and later.
 
 What goes into the executables:
 
@@ -170,12 +177,14 @@ Build errors and their cause:
 
 ## Building for Linux
 
-The packages another person unpacks or installs, on Linux with Docker:
+The packages another person unpacks or installs, on Linux with Docker, on an x86-64 computer
+or, for `linux-arm64`, a 64-bit ARM one (each is built natively on its own processor):
 
     cargo xtask package linux-x64
+    cargo xtask package linux-arm64
 
-1. Builds the image `sml26gc-build-linux:<rust-version>` from `packaging/linux/Dockerfile`:
-   Debian 11 with the C toolchain, the ALSA and udev headers and Rust at the workspace's
+1. Builds the image `sml26gc-build-linux:<rust-version>-<arch>` from `packaging/linux/Dockerfile`:
+   Ubuntu 18.04 for the computer's architecture, with the C toolchain, the ALSA and udev headers and Rust at the workspace's
    `rust-version`, installed by rustup. Docker keeps it, so later runs reuse it at once; raising
    `rust-version` makes a new one.
 2. Builds the game and the editor with the `dist` profile inside that image, as your own user
@@ -183,11 +192,11 @@ The packages another person unpacks or installs, on Linux with Docker:
    `target/linux-container/` (apart from your own `target/release/`). The downloaded crates stay
    in the Docker volume `sml26gc-cargo` between runs.
 3. Checks each executable needs only the libraries `packaging/linux/README.txt` names (glibc,
-   ALSA, udev) and no glibc newer than 2.31, and prints the version it needs.
-4. Writes `dist/linux-x64/sml26gc/`, as for Windows but with `README.txt` from
+   ALSA, udev) and no glibc newer than 2.27, and prints the version it needs.
+4. Writes `dist/<target>/sml26gc/`, as for Windows but with `README.txt` from
    `packaging/linux/`, then two packages:
-   - `dist/sml26gc-<version>-linux-x64.tar.gz`: that folder, the programs executable.
-   - `dist/sml26gc_<version>_amd64.deb`, made with `dpkg-deb` from `target/deb/`: the programs in
+   - `dist/sml26gc-<version>-<target>.tar.gz`: that folder, the programs executable.
+   - `dist/sml26gc_<version>_<arch>.deb` (`amd64` or `arm64`), made with `dpkg-deb` from `target/deb/`: the programs in
      `/usr/lib/sml26gc/` with the file `installed` that sends their data to
      `~/.local/share/sml26gc` (`host::paths::data_dir`), the commands in `/usr/bin`, the launchers
      (`packaging/linux/*.desktop`) and 256x256 icons scaled from `assets/icons/`, the documents in
@@ -195,14 +204,15 @@ The packages another person unpacks or installs, on Linux with Docker:
      `PRODUCT_MAINTAINER` in `.cargo/config.toml` is its maintainer.
 
 Why a container: an executable linked on a computer needs at least that computer's glibc (built
-on Ubuntu 24.04 it would need 2.39 and not start on Ubuntu 22.04). Debian 11's glibc 2.31 lets one
-`.tar.gz` and one `.deb` run on Debian 11, Ubuntu 20.04 and every later distribution. To change
-the base, edit the `FROM` line of the Dockerfile and the `glibc` limit of `linux-x64` in
-`xtask/src/main.rs`, together, and the versions in `packaging/linux/README.txt`. Debian 11 left
-long-term support in August 2026, so the Dockerfile installs its packages from
-`archive.debian.org`, where Debian keeps them for good.
+on Ubuntu 24.04 it would need 2.39 and not start on Ubuntu 22.04). Ubuntu 18.04's glibc 2.27 lets
+one `.tar.gz` and one `.deb` run on Ubuntu 18.04, Debian 10, RHEL 8 and every later
+distribution, the systems in use when macOS 11 (the macOS package's minimum) came out. To change
+the base, edit the `FROM` line of the Dockerfile and `LINUX_GLIBC` in `xtask/src/main.rs`,
+together, and the versions in `packaging/linux/README.txt`. Ubuntu 18.04's packages stay on
+`archive.ubuntu.com` and `ports.ubuntu.com` while its extended support lasts (2028); after that,
+the Dockerfile's sources must point at `old-releases.ubuntu.com`.
 
-To free the space: `docker image rm sml26gc-build-linux:<rust-version>`, `docker volume rm
+To free the space: `docker image rm sml26gc-build-linux:<rust-version>-<arch>`, `docker volume rm
 sml26gc-cargo`, and `target/linux-container/` (it goes with `cargo clean`).
 
 Build errors and their cause:
@@ -211,11 +221,12 @@ Build errors and their cause:
 |---|---|
 | `... Docker does not answer` | Docker is not installed or your user cannot use it: install it, `sudo usermod -aG docker $USER`, log out and in |
 | `permission denied while trying to connect to the Docker daemon socket` | The same: your user is not in the `docker` group yet (log out and in after adding it) |
-| `the linux-x64 package is built on linux` | The command was run on Windows: run it on Linux |
+| `the linux-arm64 package is built on linux on aarch64` | The command was run on another system or processor: run it on that one (or let the release run on GitHub build it) |
 | `... needs libXYZ.so, which the Linux read-me does not name` | A dependency now links another system library: add it to the read-me, the `.deb`'s `Depends` and the allowed list in `xtask/src/main.rs`, or avoid it |
-| `... needs glibc 2.xx, newer than the 2.31 ...` | The executables were not built in the container (or the Dockerfile's base changed): run the command again |
+| `... needs glibc 2.xx, newer than the 2.27 ...` | The executables were not built in the container (or the Dockerfile's base changed): run the command again |
+| `can't find crate for ...` after the Dockerfile's base changed | `target/linux-container/` holds builds from the old image: delete it and run again |
 | `dpkg-deb is needed` | Install `dpkg` |
-| `Temporary failure resolving 'archive.debian.org'` while building the image | No network: check the connection |
+| `Temporary failure resolving 'archive.ubuntu.com'` while building the image | No network: check the connection |
 
 A package is published only as part of a release (below). What a computer needs to run it is in
 [`packaging/linux/README.txt`](../packaging/linux/README.txt).
@@ -272,24 +283,31 @@ A package is published only as part of a release (below). What a Mac needs to ru
 
 ## Building for the web
 
-The game as a web page, built on any of the three systems:
+The game and the editor as web pages, built on any of the three systems (needs
+`rustup target add wasm32-unknown-unknown`):
 
     cargo xtask package web
 
-1. Builds the game alone with the `dist` profile for `wasm32-unknown-unknown`, without the
-   bundled fonts (`fonts`'s `bundled` feature off): `target/wasm32-unknown-unknown/dist/sml26gc.wasm`.
-2. Writes `dist/web/sml26gc/`: the `.wasm`; from `packaging/web/` the page (`index.html`),
-   miniquad's loader (`gl.js`), the page's script (`sml26gc.js`) and `manifest.webmanifest`; the
-   CJK fonts in `fonts/` (downloaded by the page when their language is chosen); the icons the
-   manifest and `index.html` name, made from `assets/icons/sml26gc.png`; and the texts and
-   licences as for the other packages, with only the game's manual.
+1. Builds the game, the editor and the editor's capture worker (`crates/capture-worker`) with
+   the `dist` profile for `wasm32-unknown-unknown`, without the bundled fonts (`fonts`'s
+   `bundled` feature off): `sml26gc.wasm`, `sml26gc_editor.wasm` and `sml26gc_capture.wasm` in
+   `target/wasm32-unknown-unknown/dist/`.
+2. Writes `dist/web/sml26gc/`: the three `.wasm`; from `packaging/web/` the game's page
+   (`index.html`), the editor's (`editor.html`), miniquad's loader (`gl.js`), the pages' script
+   (`sml26gc.js`), the capture workers' script (`capture-worker.js`) and
+   `manifest.webmanifest`, the pages naming the programs and scripts with a tag of their
+   contents (`?v=`) so that a browser never runs an older copy it kept; the CJK fonts in
+   `fonts/` (downloaded by the page when their language is chosen); the icons the manifest and
+   `index.html` name, made from `assets/icons/sml26gc.png`; and the texts, manuals and licences
+   as for the other packages.
 3. Zips that folder to `dist/sml26gc-<version>-web.zip`.
 
 To try it, serve the folder and open it in a browser (it does not run from `file://`):
 
     cd dist/web/sml26gc && python3 -m http.server
 
-then `http://localhost:8000/`; from a phone on the same network, the computer's address and
+then `http://localhost:8000/` for the game and `http://localhost:8000/editor.html` for the
+editor (on a computer); from a phone on the same network, the computer's address and
 port 8000 (fullscreen and the storage need HTTPS or localhost, so a phone may need the package on
 an HTTPS host). The browser's developer tools show the page's messages and its storage
 (IndexedDB, `sml26gc`). The program's half of the page is `crates/host/src/web.rs` and
@@ -334,15 +352,40 @@ Publishing release X.Y.Z, once the user has asked for it and agreed the number:
    new empty "Unreleased" above it, run the tests, commit "Release X.Y.Z", push.
 2. `git checkout main`, `git merge --no-ff develop`, `git tag -a vX.Y.Z -m "Version X.Y.Z"`,
    `git push origin main vX.Y.Z`.
-3. From `main` (or the tag `vX.Y.Z`), on Windows `cargo xtask package windows-x64`
-   (`dist\sml26gc-X.Y.Z-windows-x64.zip`), on Linux `cargo xtask package linux-x64`
-   (`dist/sml26gc-X.Y.Z-linux-x64.tar.gz` and `dist/sml26gc_X.Y.Z_amd64.deb`) and on a Mac
-   `cargo xtask package macos-universal` (`dist/sml26gc-X.Y.Z-macos-universal.zip`; when someone
-   else builds it, they build it from the tag and send the zip with its `shasum -a 256`, which is
-   checked before uploading).
-4. On GitHub, Releases, "Draft a new release": choose the tag `vX.Y.Z`, paste the changelog's
-   section as the text, attach the four files, publish (or `gh release create vX.Y.Z <files>
-   --notes-file <section>` with the GitHub CLI).
+3. Pushing the tag starts the release run on GitHub (below, "GitHub Actions"): it builds every
+   package on its own system and makes a **draft** release of the tag with them and the
+   changelog's section as its text. Check the draft (every file there, the text right; when you
+   can, a package started on its system) and choose Publish release.
+4. Publishing it puts its web package on the repository's GitHub Pages site
+   (<https://ogueta93.github.io/sml26gc/> for this repository).
+
+When GitHub cannot build a package, it can be built by hand with the same command on its own
+system and processor (`cargo xtask package <target>`, sections above), and attached to the draft
+(`gh release upload vX.Y.Z <file>`); `cargo xtask release-notes vX.Y.Z` prints the text.
+
+## GitHub Actions
+
+Three workflows in `.github/workflows/`, on GitHub's standard runners (free for a public
+repository), with no secret but each run's own token and never the cartridge:
+
+| Workflow | When | What |
+|---|---|---|
+| `checks.yml` | Every push to `develop`, every pull request | `cargo test --release --workspace --exclude regression` with warnings as errors, on Windows 11 (`windows-latest`), a Windows 10 base (`windows-2022`), Linux and macOS; the tests that need the cartridge skip, and the golden fingerprint (which fails without it) is left to the developer |
+| `release.yml` | A pushed tag `v*` | Checks the tag is the workspace's version and takes the changelog's section (`cargo xtask release-notes`), builds the six packages each on its own runner (`windows-latest`, `windows-11-arm`, `ubuntu-latest`, `ubuntu-24.04-arm`, `macos-latest`), then makes the draft release; any failure leaves no release |
+| `pages.yml` | A published release, or by hand (Actions, "Run workflow") | Puts the web package of the newest published release on the project's GitHub Pages site |
+
+A failed run is shown on the commit, the pull request or the tag (a red cross) and in the
+Actions tab: open the run, then the failed job, for the error. To try a release run again after
+fixing its cause, delete the tag on GitHub and locally (`git push origin :vX.Y.Z`, `git tag -d
+vX.Y.Z`), and tag and push again. The Pages site needs the repository's Settings, Pages, Source
+set to "GitHub Actions" (once).
+
+The workflows name no account or address of their own: a fork runs them as they are, on its
+own free runners, once its Actions are enabled (a fork starts with them off: its Actions tab).
+Its Pages site is `https://<owner>.github.io/<repository>/`, after the same Pages setting. What a
+fork that publishes its own packages should change is the product's identity in
+`.cargo/config.toml` (`PRODUCT_SOURCE`, `PRODUCT_MAINTAINER`, `PRODUCT_BUNDLE_ID`), which the
+packages carry, and the "Try it here" address in `README.md`.
 
 ## How the emulator was made, and why
 

@@ -104,11 +104,12 @@ keeps the browser from acting on the Ctrl/Cmd keys the editor uses and asks befo
 unsaved changes.
 
 `cargo xtask package TARGET` builds `game` and `editor` with the `dist` profile for the target's
-triple: on Windows into `target/<triple>/dist/`; for Linux in a Debian 11 container
+triple: on Windows into `target/<triple>/dist/`; for Linux in an Ubuntu 18.04 container of the
+computer's architecture
 (`packaging/linux/Dockerfile`, `xtask/src/linux.rs`) into `target/linux-container/`; for macOS
 for both Apple triples, joined by `lipo` into `target/universal-apple-darwin/dist/`
 (`xtask/src/macos.rs`). It checks the executables' libraries (Windows: no C runtime DLLs; Linux:
-only the allowed ones, glibc 2.31 at most; macOS: only the system's, both architectures, macOS 11
+only the allowed ones, glibc 2.27 at most; macOS: only the system's, both architectures, macOS 11
 at most), assembles `dist/TARGET/sml26gc/` (executables, on macOS in their signed app bundles,
 `packaging/` texts, font licences, the third-party crates' licences from `cargo metadata`) and
 writes the target's outputs: the zip, the `.tar.gz` and the `.deb`, or the macOS zip (`ditto`);

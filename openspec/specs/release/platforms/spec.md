@@ -7,15 +7,27 @@ code keeps what depends on the system apart so another platform can be added.
 ## Requirements
 
 ### Requirement: Supported platforms
-The supported platforms SHALL be Windows 11 on x86-64 (`windows-x64`), Linux on x86-64 (`linux-x64`), for desktop distributions with glibc 2.31 or newer (Debian 11, Ubuntu 20.04 and later) and an X11 or Wayland (through Xwayland) desktop, macOS 11 Big Sur or later on Apple Silicon and Intel (`macos-universal`), and web browsers (`web`, see `release/web`). Each desktop platform's package SHALL be built on that platform; the Linux one inside a Debian 11 container (see packaging). The web package SHALL build on any of the three.
+The supported platforms SHALL be Windows 10 or 11, 64-bit, on x86-64 (`windows-x64`) and ARM (`windows-arm64`); Linux on x86-64 (`linux-x64`) and 64-bit ARM (`linux-arm64`), desktops with glibc 2.27 or newer and X11 or Wayland (through Xwayland); macOS 11 Big Sur or later on Apple Silicon and Intel (`macos-universal`); and web browsers (`web`, see `release/web`). Each desktop package SHALL be built on its own platform and architecture (see packaging); the web package on any of the three.
 
 #### Scenario: The targets the package command knows
 - **WHEN** the package command lists its targets
-- **THEN** it lists `windows-x64`, `linux-x64`, `macos-universal` and `web`
+- **THEN** it lists `windows-x64`, `windows-arm64`, `linux-x64`, `linux-arm64`, `macos-universal` and `web`
 
 #### Scenario: An older distribution
-- **WHEN** the Linux package is unpacked on Ubuntu 20.04 or Debian 11 and `./sml26gc` is run
+- **WHEN** the Linux package is unpacked on Ubuntu 18.04, Linux Mint 19, Debian 10 or Rocky Linux 8 and `./sml26gc` is run
 - **THEN** the game starts, with no error about the glibc version
+
+#### Scenario: A Raspberry Pi
+- **WHEN** the `linux-arm64` package is unpacked on a Raspberry Pi 4 or 5 running 64-bit Raspberry Pi OS with its desktop, and `./sml26gc` is run
+- **THEN** the game starts and asks for its base cartridge
+
+#### Scenario: Windows 10
+- **WHEN** the Windows package is unpacked on Windows 10 (64-bit, with its updates) and `sml26gc.exe` is opened
+- **THEN** the game starts and asks for its base cartridge, as on Windows 11
+
+#### Scenario: Windows on ARM
+- **WHEN** the `windows-arm64` package is unpacked on a Windows 11 ARM laptop and `sml26gc.exe` is opened
+- **THEN** the game starts natively, not through x64 emulation
 
 #### Scenario: A Wayland desktop
 - **WHEN** the game is started on Ubuntu 24.04 with its default Wayland session
@@ -34,6 +46,10 @@ On a supported platform, the unpacked executables SHALL start on a freshly insta
 
 #### Scenario: A fresh Windows 11
 - **WHEN** the Windows package is unpacked on a Windows 11 computer without the Visual C++ Redistributable and `sml26gc.exe` is opened
+- **THEN** the game starts and asks for its base cartridge, with no error about a missing DLL
+
+#### Scenario: A fresh Windows 10
+- **WHEN** the Windows package is unpacked on a Windows 10 computer without the Visual C++ Redistributable and `sml26gc.exe` is opened
 - **THEN** the game starts and asks for its base cartridge, with no error about a missing DLL
 
 #### Scenario: A fresh Ubuntu desktop
