@@ -1,0 +1,53 @@
+# Builds the workspace and runs its tests on every desktop system, for every push to develop
+# and every pull request (docs/DEVELOPMENT.md, "GitHub Actions"). The tests that need the
+# cartridge skip: it is never given to GitHub.
+name: Checks
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows 11, runner: windows-latest }
+          - { name: Windows 10 base, runner: windows-2022 }
+          - { name: Linux, runner: ubuntu-latest }
+          - { name: macOS, runner: macos-latest }
+    runs-on: ${{ matrix.runner }}
+    env:
+      RUSTFLAGS: -D warnings
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust of the workspace's rust-version
+        shell: bash
+        run: |
+          rust=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml)
+          rustup toolchain install "$rust" --profile minimal
+          rustup default "$rust"
+      - name: ALSA and udev headers
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev libudev-dev
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: checks-${{ matrix.runner }}-${{ hashFiles('Cargo.lock', 'Cargo.toml') }}
+          restore-keys: checks-${{ matrix.runner }}-
+      - name: Tests
+        run: cargo test --release --workspace

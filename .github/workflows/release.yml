@@ -1,0 +1,95 @@
+# A pushed version tag (vX.Y.Z) builds every package, each on its own system and processor, and
+# makes a draft GitHub release of the tag with them and the changelog's section; the developer
+# checks it and publishes it (docs/DEVELOPMENT.md, "GitHub Actions"). Run by hand, it only builds
+# the packages, kept as the run's artifacts.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notes:
+    name: Version and notes
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust of the workspace's rust-version
+        run: |
+          rust=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml)
+          rustup toolchain install "$rust" --profile minimal
+          rustup default "$rust"
+      - name: The changelog's section of the tag's version
+        run: cargo xtask release-notes "$GITHUB_REF_NAME" > notes.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notes
+          path: notes.md
+
+  package:
+    name: Package ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: windows-x64, runner: windows-latest, rust_targets: x86_64-pc-windows-msvc }
+          - { target: windows-arm64, runner: windows-11-arm, rust_targets: aarch64-pc-windows-msvc }
+          - { target: linux-x64, runner: ubuntu-latest, rust_targets: '' }
+          - { target: linux-arm64, runner: ubuntu-24.04-arm, rust_targets: '' }
+          - { target: macos-universal, runner: macos-latest, rust_targets: aarch64-apple-darwin x86_64-apple-darwin }
+          - { target: web, runner: ubuntu-latest, rust_targets: wasm32-unknown-unknown }
+    runs-on: ${{ matrix.runner }}
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+      - name: rustup, where the runner has none
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command rustup -ErrorAction SilentlyContinue)) {
+            $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'aarch64' } else { 'x86_64' }
+            Invoke-WebRequest "https://static.rust-lang.org/rustup/dist/$arch-pc-windows-msvc/rustup-init.exe" -OutFile rustup-init.exe
+            .\rustup-init.exe -y --profile minimal --default-toolchain none
+            Add-Content $env:GITHUB_PATH "$env:USERPROFILE\.cargo\bin"
+          }
+      - name: Rust of the workspace's rust-version
+        shell: bash
+        run: |
+          rust=$(sed -n 's/^rust-version = "\(.*\)"/\1/p' Cargo.toml)
+          rustup toolchain install "$rust" --profile minimal
+          rustup default "$rust"
+          for t in ${{ matrix.rust_targets }}; do rustup target add "$t"; done
+      - name: Package
+        run: cargo xtask package ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.target }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/*.deb
+          if-no-files-found: error
+
+  release:
+    name: Draft release
+    if: github.event_name == 'push'
+    needs: [notes, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Draft release of the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "$GITHUB_REF_NAME" --notes-file artifacts/notes/notes.md artifacts/package-*/*

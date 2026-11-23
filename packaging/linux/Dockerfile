@@ -1,13 +1,13 @@
-# The image the Linux packages are built in (`cargo xtask package linux-x64`): Debian 11, whose
-# glibc 2.31 is the oldest the executables then need, so they run on Debian 11, Ubuntu 20.04 and
-# every later distribution. Rust comes from rustup at the workspace's `rust-version`.
-FROM debian:bullseye
+# The image the Linux packages are built in (`cargo xtask package linux-x64 | linux-arm64`):
+# Ubuntu 18.04, whose glibc 2.27 is the oldest the executables then need, so they run on Ubuntu
+# 18.04, Debian 10, RHEL 8 and every later distribution. Docker takes the image of the computer's
+# own architecture (amd64 or arm64). Rust comes from rustup at the workspace's `rust-version`.
+FROM ubuntu:18.04
 
-# Debian 11 left long-term support in August 2026: its packages are kept for good on
-# archive.debian.org (deb.debian.org no longer has all of them).
-RUN sed -i -e 's|deb.debian.org|archive.debian.org|g' -e '/bullseye-updates/d' /etc/apt/sources.list \
- && apt-get update \
- && apt-get install -y --no-install-recommends build-essential pkg-config libasound2-dev libudev-dev curl ca-certificates \
+# Ubuntu 18.04's packages are on archive.ubuntu.com (amd64) and ports.ubuntu.com (arm64) while
+# its extended support lasts (2028); after that, point both at old-releases.ubuntu.com here.
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential pkg-config libasound2-dev libudev-dev curl ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 ARG RUST_VERSION

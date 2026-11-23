@@ -49,18 +49,27 @@ is the code, and the same checks apply to every change, whoever or whatever wrot
 in [`AGENTS.md`](AGENTS.md), the tests (with the regression fingerprint, which holds the emulator
 to its recorded behaviour) and the specs in `openspec/specs/`.
 
+## Try it here
+
+Play the latest version in your browser at <https://ogueta93.github.io/sml26gc/>, and edit at
+<https://ogueta93.github.io/sml26gc/editor.html> (on a computer). It asks for your own cartridge
+file, which stays in your browser.
+
 ## Playing
 
-The programs run on Windows 11, Linux (x86-64; Debian 11, Ubuntu 20.04 and later
-distributions) and macOS 11 Big Sur or later (Apple Silicon and Intel). Nothing needs installing
+The programs run on Windows 10 and 11 (x86-64 and ARM), Linux (x86-64 and 64-bit ARM, such as a
+Raspberry Pi 4 or 5; Ubuntu 18.04, Debian 10, RHEL 8 and later distributions) and macOS 11 Big
+Sur or later (Apple Silicon and Intel). Nothing needs installing
 besides them; the first time, either program asks for your cartridge file.
 
-- **Windows**: unpack `sml26gc-<version>-windows-x64.zip` in a folder you can write to, such as
-  Documents, and open `sml26gc.exe` or `sml26gc_editor.exe`.
-- **Linux**: unpack `sml26gc-<version>-linux-x64.tar.gz` in your home folder and run
-  `./sml26gc` or `./sml26gc_editor` in the `sml26gc` folder (any distribution); or, on Debian,
-  Ubuntu, Mint and the like, install `sml26gc_<version>_amd64.deb`
-  (`sudo apt install ./sml26gc_<version>_amd64.deb`) and open them from the application menu.
+- **Windows**: unpack `sml26gc-<version>-windows-x64.zip` (on an ARM laptop,
+  `-windows-arm64.zip`) in a folder you can write to, such as Documents, and open `sml26gc.exe`
+  or `sml26gc_editor.exe`.
+- **Linux**: unpack `sml26gc-<version>-linux-x64.tar.gz` (on 64-bit ARM, `-linux-arm64.tar.gz`)
+  in your home folder and run `./sml26gc` or `./sml26gc_editor` in the `sml26gc` folder (any
+  distribution); or, on Debian, Ubuntu, Mint, Raspberry Pi OS and the like, install
+  `sml26gc_<version>_amd64.deb` (on ARM, `_arm64.deb`) with
+  `sudo apt install ./sml26gc_<version>_amd64.deb` and open them from the application menu.
 - **macOS**: unpack `sml26gc-<version>-macos-universal.zip`, move `SML2 6GC.app` and
   `SML2 6GC Editor.app` together into Applications, and open each the first time as its read-me
   says (the apps are not signed with an Apple developer identity).
