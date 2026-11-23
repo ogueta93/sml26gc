@@ -6,6 +6,13 @@ What each version of the programs brings, as a person using them notices it. The
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-23
+
+### Fixed
+
+- The editor's texts no longer turn into unreadable blocks until it is quit (seen on macOS,
+  mostly after opening menus or in a new language).
+
 ## [1.3.0] - 2026-11-23
 
 ### Added

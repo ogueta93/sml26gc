@@ -25,14 +25,24 @@ pub fn begin(menu: &mut dyn MenuBar) {
     TOP.set(top);
     if top > 0.0 {
         let (w, h) = (mq::screen_width(), mq::screen_height());
+        seal_drawing();
         mq::set_camera(&mq::Camera2D { target: mq::vec2(w / 2.0, h / 2.0 - top), zoom: mq::vec2(2.0 / w, 2.0 / h), ..Default::default() });
     }
 }
 
 /// End the frame: `menu` drawn over the views.
 pub fn end(menu: &mut dyn MenuBar) {
+    seal_drawing();
     mq::set_default_camera();
     menu.draw();
+}
+
+/// A camera change sends the frame's drawing so far. Its last texture must not be a font's:
+/// miniquad 0.4 remembers a deleted texture as still bound, and a font's glyph texture growing
+/// later in the frame gets the deleted one's name, so its letters are never uploaded and every
+/// text turns into blocks until the program ends (seen on macOS).
+fn seal_drawing() {
+    mq::draw_rectangle(0.0, 0.0, 1.0, 1.0, mq::Color::new(0.0, 0.0, 0.0, 0.0));
 }
 
 pub fn screen_width() -> f32 {
