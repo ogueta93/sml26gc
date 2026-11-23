@@ -1,6 +1,9 @@
 # Puts the web package of the newest published release on the project's GitHub Pages site,
 # when a release is published or by hand (docs/DEVELOPMENT.md, "GitHub Actions"). A draft, or
 # publishing an older version later, never changes the site.
+#
+# The `github-pages` environment lets only the default branch deploy, and a published release
+# runs on its tag: so it starts this workflow again on the default branch, which deploys.
 name: Web version online
 
 on:
@@ -16,8 +19,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  start:
+    name: Start the deployment on the default branch
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run pages.yml --ref "${{ github.event.repository.default_branch }}"
+
   deploy:
     name: Deploy the latest release's web package
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
