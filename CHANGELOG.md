@@ -6,6 +6,8 @@ What each version of the programs brings, as a person using them notices it. The
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-23
+
 ### Added
 
 - The game in a web browser (`sml26gc-<version>-web.zip`), on a computer, a phone or a tablet:
