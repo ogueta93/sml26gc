@@ -1,6 +1,7 @@
 # Builds the workspace and runs its tests on every desktop system, for every push to develop
-# and every pull request (docs/DEVELOPMENT.md, "GitHub Actions"). The tests that need the
-# cartridge skip: it is never given to GitHub.
+# and every pull request (docs/DEVELOPMENT.md, "GitHub Actions"). The cartridge is never given
+# to GitHub: the tests that need it skip, and `regression` (the golden fingerprint, which fails
+# without it so that it never passes unchecked) is left out.
 name: Checks
 
 on:
@@ -50,4 +51,4 @@ jobs:
           key: checks-${{ matrix.runner }}-${{ hashFiles('Cargo.lock', 'Cargo.toml') }}
           restore-keys: checks-${{ matrix.runner }}-
       - name: Tests
-        run: cargo test --release --workspace
+        run: cargo test --release --workspace --exclude regression

@@ -362,7 +362,7 @@ repository), with no secret but each run's own token and never the cartridge:
 
 | Workflow | When | What |
 |---|---|---|
-| `checks.yml` | Every push to `develop`, every pull request | `cargo test --release --workspace` with warnings as errors, on Windows 11 (`windows-latest`), a Windows 10 base (`windows-2022`), Linux and macOS; the tests that need the cartridge skip |
+| `checks.yml` | Every push to `develop`, every pull request | `cargo test --release --workspace --exclude regression` with warnings as errors, on Windows 11 (`windows-latest`), a Windows 10 base (`windows-2022`), Linux and macOS; the tests that need the cartridge skip, and the golden fingerprint (which fails without it) is left to the developer |
 | `release.yml` | A pushed tag `v*` | Checks the tag is the workspace's version and takes the changelog's section (`cargo xtask release-notes`), builds the six packages each on its own runner (`windows-latest`, `windows-11-arm`, `ubuntu-latest`, `ubuntu-24.04-arm`, `macos-latest`), then makes the draft release; any failure leaves no release |
 | `pages.yml` | A published release, or by hand (Actions, "Run workflow") | Puts the web package of the newest published release on the project's GitHub Pages site |
 
