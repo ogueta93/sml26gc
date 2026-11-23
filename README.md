@@ -51,9 +51,9 @@ to its recorded behaviour) and the specs in `openspec/specs/`.
 
 ## Try it here
 
-Play the latest version in your browser at <https://ogueta93.github.io/sml26gc/>, and edit at
-<https://ogueta93.github.io/sml26gc/editor.html> (on a computer). It asks for your own cartridge
-file, which stays in your browser.
+Play the latest version in your browser at <https://ogueta93.github.io/sml26gc/>; on a computer,
+its start screen also opens the editor (Edit, New project). It asks for your own cartridge file,
+which stays in your browser.
 
 ## Playing
 
