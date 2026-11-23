@@ -283,24 +283,31 @@ A package is published only as part of a release (below). What a Mac needs to ru
 
 ## Building for the web
 
-The game as a web page, built on any of the three systems:
+The game and the editor as web pages, built on any of the three systems (needs
+`rustup target add wasm32-unknown-unknown`):
 
     cargo xtask package web
 
-1. Builds the game alone with the `dist` profile for `wasm32-unknown-unknown`, without the
-   bundled fonts (`fonts`'s `bundled` feature off): `target/wasm32-unknown-unknown/dist/sml26gc.wasm`.
-2. Writes `dist/web/sml26gc/`: the `.wasm`; from `packaging/web/` the page (`index.html`),
-   miniquad's loader (`gl.js`), the page's script (`sml26gc.js`) and `manifest.webmanifest`; the
-   CJK fonts in `fonts/` (downloaded by the page when their language is chosen); the icons the
-   manifest and `index.html` name, made from `assets/icons/sml26gc.png`; and the texts and
-   licences as for the other packages, with only the game's manual.
+1. Builds the game, the editor and the editor's capture worker (`crates/capture-worker`) with
+   the `dist` profile for `wasm32-unknown-unknown`, without the bundled fonts (`fonts`'s
+   `bundled` feature off): `sml26gc.wasm`, `sml26gc_editor.wasm` and `sml26gc_capture.wasm` in
+   `target/wasm32-unknown-unknown/dist/`.
+2. Writes `dist/web/sml26gc/`: the three `.wasm`; from `packaging/web/` the game's page
+   (`index.html`), the editor's (`editor.html`), miniquad's loader (`gl.js`), the pages' script
+   (`sml26gc.js`), the capture workers' script (`capture-worker.js`) and
+   `manifest.webmanifest`, the pages naming the programs and scripts with a tag of their
+   contents (`?v=`) so that a browser never runs an older copy it kept; the CJK fonts in
+   `fonts/` (downloaded by the page when their language is chosen); the icons the manifest and
+   `index.html` name, made from `assets/icons/sml26gc.png`; and the texts, manuals and licences
+   as for the other packages.
 3. Zips that folder to `dist/sml26gc-<version>-web.zip`.
 
 To try it, serve the folder and open it in a browser (it does not run from `file://`):
 
     cd dist/web/sml26gc && python3 -m http.server
 
-then `http://localhost:8000/`; from a phone on the same network, the computer's address and
+then `http://localhost:8000/` for the game and `http://localhost:8000/editor.html` for the
+editor (on a computer); from a phone on the same network, the computer's address and
 port 8000 (fullscreen and the storage need HTTPS or localhost, so a phone may need the package on
 an HTTPS host). The browser's developer tools show the page's messages and its storage
 (IndexedDB, `sml26gc`). The program's half of the page is `crates/host/src/web.rs` and
@@ -349,7 +356,8 @@ Publishing release X.Y.Z, once the user has asked for it and agreed the number:
    package on its own system and makes a **draft** release of the tag with them and the
    changelog's section as its text. Check the draft (every file there, the text right; when you
    can, a package started on its system) and choose Publish release.
-4. Publishing it puts its web package on <https://ogueta93.github.io/sml26gc/>.
+4. Publishing it puts its web package on the repository's GitHub Pages site
+   (<https://ogueta93.github.io/sml26gc/> for this repository).
 
 When GitHub cannot build a package, it can be built by hand with the same command on its own
 system and processor (`cargo xtask package <target>`, sections above), and attached to the draft
@@ -371,6 +379,13 @@ Actions tab: open the run, then the failed job, for the error. To try a release 
 fixing its cause, delete the tag on GitHub and locally (`git push origin :vX.Y.Z`, `git tag -d
 vX.Y.Z`), and tag and push again. The Pages site needs the repository's Settings, Pages, Source
 set to "GitHub Actions" (once).
+
+The workflows name no account or address of their own: a fork runs them as they are, on its
+own free runners, once its Actions are enabled (a fork starts with them off: its Actions tab).
+Its Pages site is `https://<owner>.github.io/<repository>/`, after the same Pages setting. What a
+fork that publishes its own packages should change is the product's identity in
+`.cargo/config.toml` (`PRODUCT_SOURCE`, `PRODUCT_MAINTAINER`, `PRODUCT_BUNDLE_ID`), which the
+packages carry, and the "Try it here" address in `README.md`.
 
 ## How the emulator was made, and why
 
